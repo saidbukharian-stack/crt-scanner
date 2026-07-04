@@ -8,3 +8,6 @@ __pycache__/
 
 # Claude Code lokal sozlamalari
 .claude/
+
+# O'quv materiallari (mualliflik huquqi - public repoga chiqmasin)
+docs/
