@@ -95,10 +95,20 @@ Uch qatlam (kelishilgan):
   Natijalar results/results.csv ga (workflow repoga commit qiladi) +
   Telegram xabar. Sinovlar: real Juma ma'lumotida haqiqiy 9AM CRT signal
   topildi (Asia high purge 09:05), tracker 3 ssenariyda to'g'ri ishladi.
-- Kutilmoqda: treyder "Model #1" (M15 kirish tasdig'i) video havolasini
-  yuboradi - transkript o'rganiladi.
-- Keyingi qadam: dushanba jonli signallarni kuzatish + Notion trade jurnal
-  integratsiyasi.
+- MODEL TO'LIQ O'RGANILDI (2026-07-05): 23 video transkript yuklandi
+  (docs/transcripts/). Asoschi = Romeotpt (CRT secrets ep.1-10), qo'shimcha
+  = TTrades. "Model #1" = turtle soup sweep (teshib qaytish + close trigger).
+  M5 tasdiq = IC-CISD (TTrades): narx POI'ga tegib, qarshi trend shamlar
+  qatorini yopib o'tishi.
+- M5 CISD FORWARD-TEST'GA QO'SHILDI: har purge uchun IKKI xayoliy savdo
+  parallel o'lchanadi -> "raw" (purge close'ida xom kirish) va "m5_cisd"
+  (M5 CISD tasdig'i bilan kirish, stop=swing high/low). results.csv da
+  "variant" ustuni. Maqsad: M5 tasdiq winrate'ni oshiradimi - raqam bilan
+  ko'rish. signals.detect_cisd() + outcome_tracker qayta yozildi, sinovlardan
+  o'tdi, bulutda ishladi.
+- Keyingi qadamlar: (1) dushanba jonli signal+forward-test kuzatuvi,
+  (2) Notion trade jurnal, (3) LLM bilim bazasi (docs/ PDF + transcripts/
+  dan RAG) - loyihaning markaziy uzoq maqsadi.
 
 ### Sinovdan o'TMAGAN narsalar
 - Bozor ochiq paytdagi jonli skanerlash (test shanba kuni o'tkazildi, shu
