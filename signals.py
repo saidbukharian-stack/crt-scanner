@@ -103,6 +103,63 @@ def detect_sweep(df_recent: pd.DataFrame, level: Level, condition_name: str,
     return signals
 
 
+def detect_cisd(df_m5: pd.DataFrame, after_time, direction: str) -> dict | None:
+    """
+    M5 CISD (Change in State of Delivery) tasdig'ini aniqlaydi.
+
+    TTrades ta'rifiga ko'ra (IC-CISD): purge shamidan keyin narx qarshi
+    trendning ketma-ket shamlar qatorini yopib o'tsa - trend o'zgardi.
+
+    Bearish (purged high, pastga kutamiz): purge'dan keyingi M5'da eng
+    yuqori high topiladi; o'sha high'ga olib kelgan ketma-ket UP-close
+    shamlar qatorining eng past low'i = CISD darajasi; keyin biror sham
+    o'sha darajaning OSTIGA yopilsa - tasdiq. Kirish=o'sha close, stop=swing high.
+
+    Bullish - to'liq teskari.
+
+    after_time - purge shami vaqti (tz-aware NY).
+    Qaytaradi: {"entry", "entry_time", "stop"} yoki None (hali shakllanmagan).
+    """
+    after = df_m5[df_m5["time_ny"] > after_time].reset_index(drop=True)
+    if len(after) < 2:
+        return None
+    o = after["open"].values
+    c = after["close"].values
+    h = after["high"].values
+    lo = after["low"].values
+    t = after["time_ny"]
+
+    if direction == "bearish_sweep":
+        hi_idx = int(h.argmax())
+        # high'ga olib kelgan up-close shamlar qatorining eng past low'i
+        start = hi_idx if c[hi_idx] >= o[hi_idx] else hi_idx - 1
+        run_low = lo[hi_idx]
+        k = start
+        while k >= 0 and c[k] >= o[k]:
+            run_low = min(run_low, lo[k])
+            k -= 1
+        swing_high = float(h[hi_idx])
+        for m in range(hi_idx + 1, len(after)):
+            if c[m] < run_low:
+                return {"entry": float(c[m]), "entry_time": str(t.iloc[m]),
+                        "stop": swing_high}
+        return None
+    else:  # bullish_sweep
+        lo_idx = int(lo.argmin())
+        start = lo_idx if c[lo_idx] <= o[lo_idx] else lo_idx - 1
+        run_high = h[lo_idx]
+        k = start
+        while k >= 0 and c[k] <= o[k]:
+            run_high = max(run_high, h[k])
+            k -= 1
+        swing_low = float(lo[lo_idx])
+        for m in range(lo_idx + 1, len(after)):
+            if c[m] > run_high:
+                return {"entry": float(c[m]), "entry_time": str(t.iloc[m]),
+                        "stop": swing_low}
+        return None
+
+
 def scan_all_conditions(df_recent: pd.DataFrame, levels: list[Level],
                          symbol: str, enabled_conditions: dict) -> list[SweepSignal]:
     """
