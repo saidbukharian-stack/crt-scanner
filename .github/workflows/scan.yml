@@ -1,0 +1,57 @@
+# CRT Scanner - GitHub Actions'da bepul ishlaydi (server o'rniga).
+#
+# Jadval: ish kunlari har 10 daqiqada + yakshanba kechqurun (bozor ochilishi).
+# Eslatma: GitHub cron aniq vaqtda emas, ~3-15 daqiqa kechikish bilan
+# ishlashi mumkin - alert tizimi uchun qabul qilingan kelishuv.
+#
+# Sozlash (bir marta): repo Settings -> Secrets and variables -> Actions:
+#   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+name: CRT Scanner
+
+on:
+  schedule:
+    - cron: "*/10 * * * 1-5"    # dushanba-juma (UTC)
+    - cron: "*/10 21-23 * * 0"  # yakshanba 21:00 UTC dan - forex haftasi ochilishi
+  workflow_dispatch: {}          # qo'lda ishga tushirish tugmasi
+
+concurrency:
+  group: crt-scanner
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Kutubxonalarni o'rnatish
+        run: pip install -r requirements.txt
+
+      # Yuborilgan signallar ro'yxati ishga tushishlar orasida cache'da
+      # saqlanadi - bir signal ikki marta yuborilmasin
+      - name: Signal holatini tiklash
+        uses: actions/cache/restore@v4
+        with:
+          path: data/notified.json
+          key: notified-state-${{ github.run_id }}
+          restore-keys: notified-state-
+
+      - name: Skanerlash
+        env:
+          DATA_SOURCE: yahoo
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python scanner.py --once
+
+      - name: Signal holatini saqlash
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/notified.json
+          key: notified-state-${{ github.run_id }}

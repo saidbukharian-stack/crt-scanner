@@ -1,0 +1,10 @@
+# Maxfiy ma'lumotlar - HECH QACHON git'ga tushmasin
+.env
+
+# Lokal ma'lumotlar
+data/
+__pycache__/
+*.pyc
+
+# Claude Code lokal sozlamalari
+.claude/
