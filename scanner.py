@@ -39,6 +39,7 @@ else:
 from levels import all_levels_for_symbol
 from signals import scan_all_conditions
 from telegram_notifier import notify_signal
+from outcome_tracker import register_trade, update_trades
 
 logging.basicConfig(
     level=logging.INFO,
@@ -110,6 +111,13 @@ def run_once():
                 sig.symbol, sig.condition, sig.level_name, sig.direction,
             )
             notify_signal(sig)
+            register_trade(sig)  # forward-test: xayoliy savdo ochiladi
+
+    # Ochiq xayoliy savdolarni yangi shamlar bilan tekshirish
+    try:
+        update_trades(connector)
+    except Exception:
+        logger.exception("Forward-test yangilashda xato")
 
 
 def main():

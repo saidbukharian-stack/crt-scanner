@@ -12,15 +12,21 @@ from datetime import datetime, time as dtime, timedelta
 
 import pandas as pd
 
-from config import SESSIONS_NY, CRT_KEY_TIMES
+from config import SESSIONS_NY, CRT_MODELS, CRT_CANDLE_LABELS, KILLZONES_NY
 
 
 @dataclass
 class Level:
-    name: str            # masalan "PDH", "Asia_High", "CRT_9AM_High"
+    name: str            # masalan "PDH", "Asia_High", "CRT_9AM_CRT_9PM_Asia_High"
     price: float
     kind: str            # "high" yoki "low"
     session_date: str    # qaysi savdo kuniga tegishli (NY sanasi, YYYY-MM-DD)
+    # Sweep faqat shu vaqt oynalarida signal beradi (naive NY datetime juftlari).
+    # None = vaqt cheklovi yo'q.
+    windows: list[tuple[datetime, datetime]] | None = None
+    # CRT darajalari uchun: diapazonning QARSHI cheti (50% maqsadni
+    # hisoblash uchun). Boshqa darajalarda None.
+    paired_price: float | None = None
 
 
 def _parse_hhmm(s: str) -> dtime:
@@ -77,44 +83,67 @@ def session_high_low(df_intraday: pd.DataFrame, session_name: str,
     ]
 
 
-def crt_range(df_h4: pd.DataFrame, model_name: str, for_date: datetime) -> list[Level]:
+def crt_levels_for_model(df_h4: pd.DataFrame, model_name: str,
+                          for_date: datetime) -> list[Level]:
     """
-    Berilgan CRT modeli (masalan "9AM_CRT") uchun H4 shamning
-    high/low'ini (CRT High/Low) qaytaradi. Bu 3 candle CRT'dagi
-    o'rtadagi ("manipulation"/ikkinchi) shamga mos keladi - PDF
-    materiallaridagi "CRT High" / "CRT Low" atamalari shu.
+    Berilgan CRT modeli uchun purge QILINADIGAN oldingi H4 shamlarning
+    (config.CRT_MODELS[...]['range_candles']) high/low darajalarini
+    qaytaradi. Har daraja modelning key time oynasi bilan bog'lanadi -
+    sweep faqat shu oynada signal hisoblanadi.
+
+    Masalan 9AM CRT: 9PM(Asia)/1AM(London)/5AM shamlarining chegaralarini
+    09:00-10:00 oralig'ida purge qilinishini kutamiz (PDF mantig'i).
     """
-    key_time = CRT_KEY_TIMES[model_name]
-    candle_open_t = _parse_hhmm(key_time["candle_open"])
+    spec = CRT_MODELS[model_name]
     day = for_date.date()
-    target_dt = datetime.combine(day, candle_open_t)
+    w_start = datetime.combine(day, _parse_hhmm(spec["window"][0]))
+    w_end = datetime.combine(day, _parse_hhmm(spec["window"][1]))
+    window = [(w_start, w_end)]
 
     df_naive = df_h4.copy()
     df_naive["time_ny_naive"] = df_naive["time_ny"].dt.tz_localize(None)
-    match = df_naive[df_naive["time_ny_naive"] == target_dt]
-    if match.empty:
-        # eng yaqin shamni topishga urinib ko'ramiz (± 1 soat ichida)
-        diffs = (df_naive["time_ny_naive"] - target_dt).abs()
-        idx = diffs.idxmin()
-        if diffs.loc[idx] > timedelta(hours=1):
-            return []
-        match = df_naive.loc[[idx]]
 
-    row = match.iloc[0]
+    levels: list[Level] = []
     date_str = day.strftime("%Y-%m-%d")
+    for hour in spec["range_candles"]:
+        # 17:00 va 21:00 shamlari oynadan OLDINGI NY kunida ochiladi
+        candle_day = day - timedelta(days=1) if hour >= 12 else day
+        target_dt = datetime.combine(candle_day, dtime(hour, 0))
+        match = df_naive[df_naive["time_ny_naive"] == target_dt]
+        if match.empty:
+            continue  # dam olish/bayram - bu sham yo'q
+        row = match.iloc[0]
+        label = CRT_CANDLE_LABELS[hour]
+        base = f"CRT_{model_name}_{label}"
+        hi, lo = float(row["high"]), float(row["low"])
+        levels.append(Level(f"{base}_High", hi, "high", date_str, window, lo))
+        levels.append(Level(f"{base}_Low", lo, "low", date_str, window, hi))
+    return levels
+
+
+def killzone_windows(for_date: datetime) -> list[tuple[datetime, datetime]]:
+    """config.KILLZONES_NY dan shu kun uchun naive NY oynalar ro'yxati."""
+    day = for_date.date()
     return [
-        Level(f"CRT_{model_name}_High", float(row["high"]), "high", date_str),
-        Level(f"CRT_{model_name}_Low", float(row["low"]), "low", date_str),
+        (datetime.combine(day, _parse_hhmm(s)), datetime.combine(day, _parse_hhmm(e)))
+        for s, e in KILLZONES_NY
     ]
 
 
 def all_levels_for_symbol(df_intraday: pd.DataFrame, df_h4: pd.DataFrame,
                            df_d1: pd.DataFrame, for_date: datetime) -> list[Level]:
     """Bitta symbol uchun barcha yoqilgan turdagi darajalarni yig'ib qaytaradi."""
+    kz = killzone_windows(for_date)
+
     levels: list[Level] = []
-    levels += previous_day_high_low(df_d1)
-    levels += session_high_low(df_intraday, "asia", for_date)
+    # PDH/PDL va Asia H/L - faqat killzone (London/NY) oynalarida signal beradi
+    for lv in previous_day_high_low(df_d1):
+        lv.windows = kz
+        levels.append(lv)
+    for lv in session_high_low(df_intraday, "asia", for_date):
+        lv.windows = kz
+        levels.append(lv)
     levels += session_high_low(df_intraday, "london", for_date)
-    for model_name in CRT_KEY_TIMES:
-        levels += crt_range(df_h4, model_name, for_date)
+    for model_name in CRT_MODELS:
+        levels += crt_levels_for_model(df_h4, model_name, for_date)
     return levels

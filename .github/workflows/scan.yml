@@ -18,6 +18,9 @@ concurrency:
   group: crt-scanner
   cancel-in-progress: false
 
+permissions:
+  contents: write   # forward-test natijalarini (results/) repoga commit qilish uchun
+
 jobs:
   scan:
     runs-on: ubuntu-latest
@@ -33,12 +36,14 @@ jobs:
       - name: Kutubxonalarni o'rnatish
         run: pip install -r requirements.txt
 
-      # Yuborilgan signallar ro'yxati ishga tushishlar orasida cache'da
-      # saqlanadi - bir signal ikki marta yuborilmasin
+      # Yuborilgan signallar ro'yxati va ochiq xayoliy savdolar
+      # ishga tushishlar orasida cache'da saqlanadi
       - name: Signal holatini tiklash
         uses: actions/cache/restore@v4
         with:
-          path: data/notified.json
+          path: |
+            data/notified.json
+            data/trades.json
           key: notified-state-${{ github.run_id }}
           restore-keys: notified-state-
 
@@ -53,5 +58,23 @@ jobs:
         if: always()
         uses: actions/cache/save@v4
         with:
-          path: data/notified.json
+          path: |
+            data/notified.json
+            data/trades.json
           key: notified-state-${{ github.run_id }}
+
+      # Forward-test natijalari (results/results.csv) doimiy bo'lishi uchun
+      # repoga commit qilinadi - telefondan ham ko'rish mumkin
+      - name: Natijalarni repoga saqlash
+        if: always()
+        run: |
+          if [ -f results/results.csv ]; then
+            git config user.name "crt-scanner-bot"
+            git config user.email "crt-scanner-bot@users.noreply.github.com"
+            git add results/
+            if ! git diff --cached --quiet; then
+              git commit -m "Forward-test natijalari [skip ci]"
+              git pull --rebase origin main
+              git push
+            fi
+          fi

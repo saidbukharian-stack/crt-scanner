@@ -73,26 +73,48 @@ YAHOO_SYMBOL_MAP = {
 }
 
 # ---------------------------------------------------------------------------
-# CRT "key time" oynalari (NY vaqti, soat:daqiqa, 24h format)
-# Loyihadagi PDF materiallardan olingan (9AM/5AM/1AM CRT qo'llanmalari)
+# CRT modellari (NY vaqti) - @Im-speculator PDF seriyasiga mos.
+#
+# MUHIM MANTIQ: "9AM CRT" degani 9AM shamining O'Z diapazoni emas!
+# Model bo'yicha 9AM (key) shami OLDINGI H4 shamlarning (CRT shamlar)
+# diapazonini key time oynasida purge qiladi:
+#   - range_candles: purge QILINADIGAN H4 shamlarning NY ochilish soatlari
+#     (17 va 21 - oldingi NY kunida ochiladi, 1 va 5 - shu kunda)
+#   - window: purge/kirish oynasi - sweep faqat shu oraliqda signal beradi
+#
+# PDF'lardan:
+#   1AM CRT: CRT shamlar = 5PM (CBDR), 9PM (Asia); oyna 02:00-03:00
+#   5AM CRT: CRT shamlar = 5PM, 9PM, 1AM (London); oyna 06:00-08:30
+#            (London lunch 06-07 + NY opening 07-08:30)
+#   9AM CRT: CRT shamlar = 9PM (Asia), 1AM (London), 5AM; oyna 09:00-10:00
+#            (muqobil: 09:30-10:30)
 # ---------------------------------------------------------------------------
-CRT_KEY_TIMES = {
+CRT_MODELS = {
     "1AM_CRT": {
-        "candle_open": "01:00",       # CRT shami ochilish vaqti
-        "window_start": "02:00",      # Kirish oynasi boshlanishi
-        "window_end": "03:00",        # Kirish oynasi tugashi
+        "range_candles": [17, 21],
+        "window": ("02:00", "03:00"),
     },
     "5AM_CRT": {
-        "candle_open": "05:00",
-        "window_start": "06:00",
-        "window_end": "08:30",        # London lunch (06-07) + NY opening (07-08:30)
+        "range_candles": [17, 21, 1],
+        "window": ("06:00", "08:30"),
     },
     "9AM_CRT": {
-        "candle_open": "09:00",
-        "window_start": "09:00",
-        "window_end": "10:00",        # ba'zan 09:30-10:30 ham qo'llaniladi
+        "range_candles": [21, 1, 5],
+        "window": ("09:00", "10:00"),
     },
 }
+
+# H4 sham ochilish soatiga o'qiladigan nom (signal xabarlari uchun)
+CRT_CANDLE_LABELS = {17: "5PM_CBDR", 21: "9PM_Asia", 1: "1AM_London", 5: "5AM"}
+
+# ---------------------------------------------------------------------------
+# Killzone oynalari (NY vaqti) - PDH/PDL va Asia H/L sweep signallari
+# faqat shu oraliqlarda beriladi (tungi shovqinni kesish uchun)
+# ---------------------------------------------------------------------------
+KILLZONES_NY = [
+    ("02:00", "05:00"),   # London killzone
+    ("07:00", "11:00"),   # NY killzone
+]
 
 # CRT uchun H4 (4 soatlik) sham yopilgan vaqtlar (NY), shamlarni
 # to'g'ri guruhlash uchun ishlatiladi: 1AM/5AM/9AM/1PM/5PM/9PM

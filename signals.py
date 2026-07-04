@@ -25,13 +25,23 @@ from levels import Level
 class SweepSignal:
     symbol: str
     condition: str        # "asia_hl_sweep" | "pdh_pdl_sweep" | "crt_range_sweep"
-    level_name: str        # masalan "Asia_High", "PDH", "CRT_9AM_CRT_High"
+    level_name: str        # masalan "Asia_High", "PDH", "CRT_9AM_CRT_9PM_Asia_High"
     level_price: float
     sweep_candle_time: str
     sweep_high: float
     sweep_low: float
     close_price: float
     direction: str          # "bullish_sweep" (low supurildi) | "bearish_sweep" (high supurildi)
+    # CRT signallari uchun: diapazon o'rtasi (50% maqsad). Boshqalarda None.
+    crt_mid: float | None = None
+
+
+def _candle_in_windows(candle_time, windows) -> bool:
+    """Sham ochilish vaqti (tz-aware NY) darajaning oynalaridan biriga tushadimi."""
+    if windows is None:
+        return True
+    t = candle_time.tz_localize(None)  # aware -> naive NY devoriy vaqti
+    return any(ws <= t < we for ws, we in windows)
 
 
 def detect_sweep(df_recent: pd.DataFrame, level: Level, condition_name: str,
@@ -46,7 +56,16 @@ def detect_sweep(df_recent: pd.DataFrame, level: Level, condition_name: str,
     signals: list[SweepSignal] = []
     window = df_recent.tail(lookback_candles)
 
+    crt_mid = None
+    if level.paired_price is not None:
+        crt_mid = (level.price + level.paired_price) / 2
+
     for _, candle in window.iterrows():
+        # Daraja vaqt oynasiga ega bo'lsa (CRT key time, killzone) -
+        # oynadan tashqaridagi sweep signal hisoblanmaydi
+        if not _candle_in_windows(candle["time_ny"], level.windows):
+            continue
+
         if level.kind == "high":
             # High sweep: wick darajadan yuqoriga chiqadi, close pastda yopiladi
             wicked_above = candle["high"] > level.price
@@ -62,6 +81,7 @@ def detect_sweep(df_recent: pd.DataFrame, level: Level, condition_name: str,
                     sweep_low=float(candle["low"]),
                     close_price=float(candle["close"]),
                     direction="bearish_sweep",
+                    crt_mid=crt_mid,
                 ))
         else:  # level.kind == "low"
             wicked_below = candle["low"] < level.price
@@ -77,6 +97,7 @@ def detect_sweep(df_recent: pd.DataFrame, level: Level, condition_name: str,
                     sweep_low=float(candle["low"]),
                     close_price=float(candle["close"]),
                     direction="bullish_sweep",
+                    crt_mid=crt_mid,
                 ))
 
     return signals
