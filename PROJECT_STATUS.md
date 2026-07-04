@@ -81,6 +81,22 @@ Uch qatlam (kelishilgan):
   sinov ishga tushishi muvaffaqiyatli o'tdi. Lokal komp endi SHART EMAS.
 - scanner.py'ga --once rejimi qo'shildi (cron/CI uchun) va notified holati
   faylga saqlanadigan bo'ldi (3 kundan eski yozuvlar tozalanadi).
+- MODEL ANIQLANDI (2026-07-05): docs/ dagi PDF'lar (@Im-speculator CRT/DOL
+  seriyasi, Triad QT, Arden CRT) o'rganildi. MUHIM TUZATISH: CRT modeli
+  bo'yicha 9AM (key) shami OLDINGI H4 shamlar (9PM/1AM/5AM) diapazonini
+  key time'da purge qiladi - skaner avval key shamning o'z diapazonini
+  kuzatgan (xato). config.CRT_MODELS ga qayta qurildi:
+  1AM: [5PM,9PM] oyna 02-03; 5AM: [5PM,9PM,1AM] oyna 06-08:30;
+  9AM: [9PM,1AM,5AM] oyna 09-10. PDH/PDL va Asia sweep endi faqat
+  killzone'larda (London 02-05, NY 07-11).
+- FORWARD-TEST qo'shildi (outcome_tracker.py): har signal uchun xayoliy
+  savdo (kirish=purge close, stop=purge wick), maqsadlar CRT-50% + 1R/2R/3R
+  parallel, muddat 17:00 NY, bir shamda stop+maqsad = konservativ stop.
+  Natijalar results/results.csv ga (workflow repoga commit qiladi) +
+  Telegram xabar. Sinovlar: real Juma ma'lumotida haqiqiy 9AM CRT signal
+  topildi (Asia high purge 09:05), tracker 3 ssenariyda to'g'ri ishladi.
+- Kutilmoqda: treyder "Model #1" (M15 kirish tasdig'i) video havolasini
+  yuboradi - transkript o'rganiladi.
 - Keyingi qadam: dushanba jonli signallarni kuzatish + Notion trade jurnal
   integratsiyasi.
 
