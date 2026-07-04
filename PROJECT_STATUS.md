@@ -73,8 +73,16 @@ Uch qatlam (kelishilgan):
   17:00 hizalanish bilan yig'iladi - [1,5,9,13,17,21] NY tasdiqlandi.
   D1 NY 17:00 forex kuniga hizalangan; Yahoo'ning juma yopilishidagi
   "sayoz qator" artefakti filtrlangan (PDH/PDL buzilmasin deb).
-- Keyingi qadam: bulut hosting (Oracle Cloud Always Free yoki GitHub
-  Actions zaxira) + Notion trade jurnal integratsiyasi.
+- BULUTGA JOYLANDI (2026-07-04): GitHub Actions, repo
+  github.com/saidbukharian-stack/crt-scanner (public). Jadval: ish kunlari
+  har 10 daqiqada + yakshanba 21:00 UTC dan (workflow: .github/workflows/scan.yml).
+  Token/chat_id GitHub Secrets'da. Yuborilgan signallar ro'yxati Actions
+  cache'da (data/notified.json) saqlanadi - takror xabar yo'q. Birinchi
+  sinov ishga tushishi muvaffaqiyatli o'tdi. Lokal komp endi SHART EMAS.
+- scanner.py'ga --once rejimi qo'shildi (cron/CI uchun) va notified holati
+  faylga saqlanadigan bo'ldi (3 kundan eski yozuvlar tozalanadi).
+- Keyingi qadam: dushanba jonli signallarni kuzatish + Notion trade jurnal
+  integratsiyasi.
 
 ### Sinovdan o'TMAGAN narsalar
 - Bozor ochiq paytdagi jonli skanerlash (test shanba kuni o'tkazildi, shu
