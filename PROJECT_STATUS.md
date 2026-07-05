@@ -153,9 +153,19 @@ Uch qatlam (kelishilgan):
   mexanik reja (kirish=purge close, stop=purge wick, 1R/2R/3R + CRT 50%),
   notify_signal ichida qo'shiladi. /holat uchun LLM shartli reja beradi
   (analyze_market ko'rsatmasi yangilandi). Ikkalasi sinaldi.
-- Keyingi qadamlar: (1) dushanba jonli kuzatuv (ish kunida surat yanada boy),
+- TEZ SIGNAL (2026-07-05): skaner uzluksiz qilindi (scan.yml loop, har 2 daqiqada
+  skan, MAX_RUNTIME_SEC=19800 ~5h30m, cron har 6 soatda qayta). scanner.py
+  env'dan SCAN_INTERVAL_MINUTES + MAX_RUNTIME_SEC o'qiydi. Holat+natijalar
+  cache'da kumulyativ, results.csv ish oxirida repoga commit. Skan kechikishi
+  10 daq -> ~2 daq. NAZORAT: Yahoo throttling (GitHub IP, 2-min × 6 instrument)
+  - dushanba kuzatilsin, 429 ko'p bo'lsa intervalни 3-5 daq'ga oshirish.
+- Kechikish tahlili (treyder bilan): Yahoo futures (GC/NQ/ES) ~10-15 daq
+  kechikadi, forex deyarli real vaqt. Validatsiyaga ta'sir yo'q (forward-test
+  yopilgan sham natijasini o'lchaydi). Jonli alert uchun H4 setup'da sezilmaydi.
+  Haqiqiy yechim = broker feed (mt5/oanda, real vaqt) jonli bosqichda.
+- Keyingi qadamlar: (1) dushanba jonli kuzatuv (surat boy + Yahoo throttling),
   (2) Gemini kalitini to'g'rilash (ixtiyoriy). Kelajak: weekly profile bias,
-  IRL/ERL, key level'ni sweep bilan bog'lash (hozir daraja=sweep level).
+  IRL/ERL, key level'ni sweep bilan bog'lash.
 
 ### Sinovdan o'TMAGAN narsalar
 - Bozor ochiq paytdagi jonli skanerlash (test shanba kuni o'tkazildi, shu
