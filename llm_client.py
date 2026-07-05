@@ -161,13 +161,17 @@ def analyze_market(snapshot: str) -> str | None:
     """
     user = (
         "Quyida bir instrumentning HOZIRGI jonli holati berilgan. Uni CRT/DOL "
-        "metodologiyasi asosida qisqa (4-7 jumla) tahlil qil:\n"
+        "metodologiyasi asosida qisqa tahlil qil:\n"
         "- Order flow/bias qaysi tomonda, DOL (draw on liquidity) ehtimol qayerda\n"
         "- Hozir qaysi oynadamiz va bu nima degani (masalan 9AM CRT oynasi)\n"
-        "- Setup shakllanyaptimi yoki kutish kerakmi\n"
-        "- Treyder aynan nimaga e'tibor berishi kerak (key level, tasdiq)\n"
-        "Faqat berilgan ma'lumot va bilim bazasiga tayan; narx bashorat qilma, "
-        "faqat mexanik holatni izohla.\n\n"
+        "- Setup shakllanyaptimi yoki kutish kerakmi\n\n"
+        "So'ngra SHARTLI KIRISH/CHIQISH REJASINI ber (mexanik, model qoidalari "
+        "bo'yicha): agar setup shakllansa, qaysi darajada sweep kutiladi, kirish "
+        "taxminan qayerda (purge close), stop qayerda (purge wick/swing), maqsad "
+        "qayerda (CRT 50%, qarshi chet, yoki eng yaqin FVG/OB/daraja). Aniq "
+        "narxlarni suratdagi darajalardan foydalanib ayt.\n\n"
+        "Narx bashorat qilma, faqat mexanik holat va shartli rejani izohla. "
+        "Bu moliyaviy maslahat emas.\n\n"
         f"=== JONLI HOLAT ===\n{snapshot}"
     )
-    return ask_llm(_system_prompt(), user, max_tokens=700)
+    return ask_llm(_system_prompt(), user, max_tokens=900)

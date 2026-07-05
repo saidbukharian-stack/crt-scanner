@@ -74,6 +74,15 @@ def send_telegram_message(text: str) -> bool:
 def notify_signal(signal: SweepSignal) -> bool:
     message = format_signal_message(signal)
 
+    # Mexanik kirish/stop/maqsad rejasi
+    try:
+        from signals import format_trade_plan
+        plan = format_trade_plan(signal)
+        if plan:
+            message += f"\n\n{plan}"
+    except Exception as exc:
+        logger.warning("Reja qo'shilmadi: %s", exc)
+
     # LLM tushuntirishi (Gemini/Groq sozlangan bo'lsa) - signalga qo'shiladi
     try:
         from llm_client import explain_signal, GEMINI_API_KEY, GROQ_API_KEY

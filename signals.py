@@ -160,6 +160,39 @@ def detect_cisd(df_m5: pd.DataFrame, after_time, direction: str) -> dict | None:
         return None
 
 
+def format_trade_plan(sig: SweepSignal) -> str:
+    """
+    Signal uchun mexanik kirish/stop/maqsad rejasini matn qilib qaytaradi.
+    Forward-test bilan bir xil qoidalar (kirish=purge close, stop=purge wick).
+    """
+    entry = sig.close_price
+    if sig.direction == "bullish_sweep":
+        stop = sig.sweep_low
+        sign = 1
+        yon = "LONG (low supurildi)"
+    else:
+        stop = sig.sweep_high
+        sign = -1
+        yon = "SHORT (high supurildi)"
+    r = abs(entry - stop)
+    if r <= 0:
+        return ""
+    t1 = entry + sign * r
+    t2 = entry + sign * 2 * r
+    t3 = entry + sign * 3 * r
+    lines = [
+        f"📍 <b>Reja</b> ({yon}):",
+        f"• Kirish (xom): {entry:.5f} — purge sham close'i",
+        f"• Kirish (tasdiqli): M5 CISD shakllangach — aniqroq, stop kichikroq",
+        f"• Stop: {stop:.5f} — purge wick uchi (R={r:.5f})",
+        f"• Maqsad: 1R={t1:.5f} | 2R={t2:.5f} | 3R={t3:.5f}",
+    ]
+    if sig.crt_mid is not None:
+        lines.append(f"• CRT 50%: {sig.crt_mid:.5f}")
+    lines.append("<i>Mexanik reja, moliyaviy maslahat emas — qaror o'zingizda.</i>")
+    return "\n".join(lines)
+
+
 def scan_all_conditions(df_recent: pd.DataFrame, levels: list[Level],
                          symbol: str, enabled_conditions: dict) -> list[SweepSignal]:
     """
