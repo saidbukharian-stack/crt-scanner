@@ -149,6 +149,10 @@ Uch qatlam (kelishilgan):
   boyitildi -> jonli tahlil ancha kuchli (XAUUSD sinovда: OF bullish, DOL
   buy-side 4157, FVG'lar, OB 4042-4087). yahoo_connector bo'sh ma'lumotга
   chidamli qilindi; DXY olib tashlandi (Yahoo ticker yo'q).
+- KIRISH/CHIQISH REJASI (2026-07-05): signals.format_trade_plan — har signalга
+  mexanik reja (kirish=purge close, stop=purge wick, 1R/2R/3R + CRT 50%),
+  notify_signal ichida qo'shiladi. /holat uchun LLM shartli reja beradi
+  (analyze_market ko'rsatmasi yangilandi). Ikkalasi sinaldi.
 - Keyingi qadamlar: (1) dushanba jonli kuzatuv (ish kunida surat yanada boy),
   (2) Gemini kalitini to'g'rilash (ixtiyoriy). Kelajak: weekly profile bias,
   IRL/ERL, key level'ni sweep bilan bog'lash (hozir daraja=sweep level).
