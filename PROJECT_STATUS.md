@@ -111,11 +111,25 @@ Uch qatlam (kelishilgan):
   power-of-three, turtle soup, Model #1, key level, candle 3, CISD, ideal
   formation, targets, SMT, time theory, weekly profiles, bias, failed CRT).
   Bu LLM/RAG bazasining asosi.
-- Keyingi qadamlar: (1) dushanba jonli signal+forward-test kuzatuvi,
-  (2) Notion trade jurnal, (3) LLM bilim bazasi (docs/ PDF + transcripts/ +
-  MODEL_KNOWLEDGE.md dan RAG) + Telegram savol-javob - markaziy uzoq maqsad.
-  Aniqlangan kelajak skaner yaxshilanishlari: SMT filtri, weekly profile
-  bias, key level (OB/FVG) aniqlash, DOL avtomatik.
+- NOTION BEKOR QILINDI (treyder qarori): tizim allaqachon xayoliy savdo
+  ochib foyda/zarar ko'rsatyapti, Notion ortiqcha edi.
+- LLM QATLAMI QURILDI (2026-07-05): llm_client.py (Gemini 2.0 Flash + Groq
+  Llama-3.3-70b, avtomatik fallback - biri limitga ursa ikkinchisi), ikkalasi
+  ham BEPUL (treyder tanlovi, "0 so'm"). RAG o'rniga soddalik: butun
+  MODEL_KNOWLEDGE.md (~11KB) kontekstga joylashtiriladi.
+  - Signal tushuntirish: telegram_notifier.notify_signal signalga LLM izohini
+    qo'shadi (Gemini/Groq sozlangan bo'lsa).
+  - Savol-javob: telegram_bot.py - getUpdates polling (webhook emas, chunki
+    GitHub Actions server emas), faqat egaга javob beradi, offset cache'da.
+  - Workflow: GEMINI_API_KEY/GROQ_API_KEY env, KNOWLEDGE_MD secret'dan
+    docs/MODEL_KNOWLEDGE.md tiklanadi (public repoda yo'q - mualliflik huquqi),
+    "Savol-javob" qadami har 10 daqiqada polling qiladi.
+  - Kutilmoqda: treyder Gemini (aistudio.google.com/apikey) + Groq
+    (console.groq.com/keys) bepul kalitlarini yuboradi -> Secrets'ga qo'yiladi,
+    KNOWLEDGE_MD ham fayldan set qilinadi, sinov.
+- Keyingi qadamlar: (1) LLM kalitlari + sinov, (2) dushanba jonli signal+
+  forward-test+LLM kuzatuvi. Kelajak skaner yaxshilanishlari: SMT filtri,
+  weekly profile bias, key level (OB/FVG) aniqlash, DOL avtomatik.
 
 ### Sinovdan o'TMAGAN narsalar
 - Bozor ochiq paytdagi jonli skanerlash (test shanba kuni o'tkazildi, shu
