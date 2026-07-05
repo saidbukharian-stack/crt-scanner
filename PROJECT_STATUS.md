@@ -106,9 +106,16 @@ Uch qatlam (kelishilgan):
   "variant" ustuni. Maqsad: M5 tasdiq winrate'ni oshiradimi - raqam bilan
   ko'rish. signals.detect_cisd() + outcome_tracker qayta yozildi, sinovlardan
   o'tdi, bulutda ishladi.
+- MODEL BILIM HUJJATI (2026-07-05): docs/MODEL_KNOWLEDGE.md yaratildi - 11
+  transkript + PDF chuqur o'qib, 16 bo'limli tuzilgan baza (falsafa, fraktal,
+  power-of-three, turtle soup, Model #1, key level, candle 3, CISD, ideal
+  formation, targets, SMT, time theory, weekly profiles, bias, failed CRT).
+  Bu LLM/RAG bazasining asosi.
 - Keyingi qadamlar: (1) dushanba jonli signal+forward-test kuzatuvi,
-  (2) Notion trade jurnal, (3) LLM bilim bazasi (docs/ PDF + transcripts/
-  dan RAG) - loyihaning markaziy uzoq maqsadi.
+  (2) Notion trade jurnal, (3) LLM bilim bazasi (docs/ PDF + transcripts/ +
+  MODEL_KNOWLEDGE.md dan RAG) + Telegram savol-javob - markaziy uzoq maqsad.
+  Aniqlangan kelajak skaner yaxshilanishlari: SMT filtri, weekly profile
+  bias, key level (OB/FVG) aniqlash, DOL avtomatik.
 
 ### Sinovdan o'TMAGAN narsalar
 - Bozor ochiq paytdagi jonli skanerlash (test shanba kuni o'tkazildi, shu
