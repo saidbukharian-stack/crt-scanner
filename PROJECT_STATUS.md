@@ -127,9 +127,21 @@ Uch qatlam (kelishilgan):
   - Kutilmoqda: treyder Gemini (aistudio.google.com/apikey) + Groq
     (console.groq.com/keys) bepul kalitlarini yuboradi -> Secrets'ga qo'yiladi,
     KNOWLEDGE_MD ham fayldan set qilinadi, sinov.
-- Keyingi qadamlar: (1) LLM kalitlari + sinov, (2) dushanba jonli signal+
-  forward-test+LLM kuzatuvi. Kelajak skaner yaxshilanishlari: SMT filtri,
-  weekly profile bias, key level (OB/FVG) aniqlash, DOL avtomatik.
+- LLM KALITLARI SOZLANDI (2026-07-05): Groq ishlaydi (gsk_...), Gemini kaliti
+  noto'g'ri formatda (AQ.Ab8... = OAuth token, API kalit AIzaSy... bo'lishi
+  kerak) - har safar 429, lekin fallback Groq'ga o'tadi. Secrets: GEMINI_API_KEY,
+  GROQ_API_KEY, KNOWLEDGE_MD. Jonli sinov: bot 2 savolga Groq orqali to'g'ri
+  javob berdi.
+- JONLI TAHLIL QO'SHILDI (2026-07-05): market_snapshot.py bozor holatini
+  (narx, D1/H4 bias, faol killzone/CRT oyna, barcha darajalar + narx nisbati,
+  so'nggi sweep) matnга jamlaydi; llm_client.analyze_market() uni bilim bazasi
+  bilan tahlil qiladi. Bot: "/holat XAUUSD" yoki "EURUSD hozir qanday" ->
+  jonli tahlil. Sinaldi (Groq): mazmunli CRT tahlili chiqdi. Weekend'da surat
+  yupqa (faqat PDH/PDL), ish kunida Asia/London/CRT ham qo'shiladi.
+- Keyingi qadamlar: (1) dushanba jonli /holat + signal + forward-test kuzatuvi,
+  (2) Gemini kalitini to'g'rilash (ixtiyoriy). Kelajak: skanerда key level
+  (OB/FVG) va SMT avtomatik aniqlash -> surat boyiydi -> tahlil kuchayadi;
+  weekly profile bias; jonli SMT moduli.
 
 ### Sinovdan o'TMAGAN narsalar
 - Bozor ochiq paytdagi jonli skanerlash (test shanba kuni o'tkazildi, shu
