@@ -152,3 +152,22 @@ def explain_signal(signal_summary: str) -> str | None:
 def answer_question(question: str) -> str | None:
     """Treyderning Telegram'dagi savoliga bilim bazasidan javob beradi."""
     return ask_llm(_system_prompt(), question, max_tokens=800)
+
+
+def analyze_market(snapshot: str) -> str | None:
+    """
+    Bozorning jonli holatini (snapshot) bilim bazasi asosida tahlil qiladi.
+    Bu LLM'ning "jonli tahlilchi" rejimi - qoidalar + hozirgi holat.
+    """
+    user = (
+        "Quyida bir instrumentning HOZIRGI jonli holati berilgan. Uni CRT/DOL "
+        "metodologiyasi asosida qisqa (4-7 jumla) tahlil qil:\n"
+        "- Order flow/bias qaysi tomonda, DOL (draw on liquidity) ehtimol qayerda\n"
+        "- Hozir qaysi oynadamiz va bu nima degani (masalan 9AM CRT oynasi)\n"
+        "- Setup shakllanyaptimi yoki kutish kerakmi\n"
+        "- Treyder aynan nimaga e'tibor berishi kerak (key level, tasdiq)\n"
+        "Faqat berilgan ma'lumot va bilim bazasiga tayan; narx bashorat qilma, "
+        "faqat mexanik holatni izohla.\n\n"
+        f"=== JONLI HOLAT ===\n{snapshot}"
+    )
+    return ask_llm(_system_prompt(), user, max_tokens=700)

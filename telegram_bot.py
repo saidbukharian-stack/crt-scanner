@@ -23,7 +23,8 @@ import os
 import requests
 
 from config import DB_PATH, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
-from llm_client import answer_question, GEMINI_API_KEY, GROQ_API_KEY
+from llm_client import answer_question, analyze_market, GEMINI_API_KEY, GROQ_API_KEY
+from market_snapshot import build_snapshot, resolve_symbol
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("telegram_bot")
@@ -33,13 +34,14 @@ _OFFSET_PATH = os.path.join(os.path.dirname(DB_PATH), "tg_offset.json")
 
 _HELP = (
     "🤖 <b>CRT yordamchi bot</b>\n\n"
-    "Menga CRT/DOL/QT metodologiyasi bo'yicha savol yozing, bilim bazasidan "
-    "javob beraman.\n\n"
-    "Masalan:\n"
+    "<b>1) Savol-javob</b> — CRT/DOL/QT bo'yicha savol yozing:\n"
     "• 9AM CRT qoidalarini eslat\n"
     "• Turtle soup nima?\n"
-    "• Model #1 qanday ishlaydi?\n"
     "• CRT qachon ishlamaydi?\n\n"
+    "<b>2) Jonli tahlil</b> — instrument holatini so'rang:\n"
+    "• /holat XAUUSD\n"
+    "• EURUSD hozir qanday?\n"
+    "• USTEC holati\n\n"
     "Eslatma: men maslahatchi instrumentman, savdo qarori o'zingizda."
 )
 
@@ -65,15 +67,40 @@ def _save_offset(offset: int):
         json.dump({"offset": offset}, f)
 
 
+def _is_status_query(text_low: str) -> bool:
+    """Savol jonli holat so'rovimi (tahlil kerak)?"""
+    if text_low.startswith("/holat"):
+        return True
+    triggers = ("hozir qanday", "holati", "holat", "tahlil", "qanday ahvolda",
+                "nima gap", "setup bormi")
+    return any(t in text_low for t in triggers)
+
+
 def _handle_text(text: str) -> str:
     stripped = text.strip()
     low = stripped.lower()
     if low in ("/start", "/help", "help", "start"):
         return _HELP
-    if low.startswith("/tushuntir"):
-        stripped = stripped[len("/tushuntir"):].strip() or "Joriy holatni tushuntir"
     if not (GEMINI_API_KEY or GROQ_API_KEY):
         return "⚠️ LLM hali sozlanmagan (GEMINI_API_KEY / GROQ_API_KEY yo'q)."
+
+    # Jonli tahlil rejimi: instrument holati so'ralsa
+    if _is_status_query(low):
+        symbol = resolve_symbol(stripped)
+        if symbol is None:
+            return ("Qaysi instrument? Masalan: /holat XAUUSD\n"
+                    "Mavjud: EURUSD, GBPUSD, USDCAD, XAUUSD, USTEC, US500")
+        snapshot = build_snapshot(symbol)
+        if snapshot is None:
+            return f"⚠️ {symbol} bo'yicha ma'lumot olinmadi (bozor yopiq yoki manba xatosi)."
+        analysis = analyze_market(snapshot)
+        if not analysis:
+            return "⚠️ Tahlil qilib bo'lmadi (LLM limiti yoki xato)."
+        return f"📈 <b>{symbol} — jonli tahlil</b>\n\n{analysis}"
+
+    # Aks holda: bilim bazasidan savol-javob
+    if low.startswith("/tushuntir"):
+        stripped = stripped[len("/tushuntir"):].strip() or "Joriy holatni tushuntir"
     answer = answer_question(stripped)
     return answer or "⚠️ Kechirasiz, hozir javob bera olmadim (LLM limiti yoki xato)."
 
