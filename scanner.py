@@ -137,7 +137,12 @@ def main():
         )
         raise SystemExit(1)
 
+    # Interval va maksimal ish vaqti env'dan sozlanadi (bulut uchun)
+    interval = int(os.getenv("SCAN_INTERVAL_MINUTES", str(SCAN_INTERVAL_MINUTES)))
+    max_runtime = int(os.getenv("MAX_RUNTIME_SEC", "0"))  # 0 = cheksiz (lokal)
+
     _load_notified_state()
+    start = time.monotonic()
     try:
         if args.once:
             run_once()
@@ -146,8 +151,11 @@ def main():
         while True:
             run_once()
             _save_notified_state()
-            logger.info("Keyingi tekshiruv %d daqiqadan so'ng...", SCAN_INTERVAL_MINUTES)
-            time.sleep(SCAN_INTERVAL_MINUTES * 60)
+            if max_runtime and time.monotonic() - start >= max_runtime:
+                logger.info("Ish vaqti tugadi, chiqilyapti (workflow qayta ishga tushiradi).")
+                break
+            logger.info("Keyingi tekshiruv %d daqiqadan so'ng...", interval)
+            time.sleep(interval * 60)
     except KeyboardInterrupt:
         logger.info("To'xtatildi (Ctrl+C).")
     finally:
