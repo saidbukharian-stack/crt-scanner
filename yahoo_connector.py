@@ -89,6 +89,8 @@ class YahooConnector:
 
     @staticmethod
     def _resample(df_h1: pd.DataFrame, rule: str, offset: str) -> pd.DataFrame:
+        if df_h1.empty:
+            return pd.DataFrame()
         agg = df_h1.resample(rule, offset=offset).agg(
             {"open": "first", "high": "max", "low": "min",
              "close": "last", "volume": "sum"}

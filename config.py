@@ -70,6 +70,21 @@ YAHOO_SYMBOL_MAP = {
     "XAUUSD": "GC=F",     # COMEX oltin futures (Yahoo'da spot XAUUSD yo'q)
     "USTEC": "NQ=F",      # Nasdaq 100 futures (naqd ^NDX faqat kunduzi ochiq)
     "US500": "ES=F",      # S&P 500 futures
+    # SMT juftliklari uchun qo'shimcha (INSTRUMENTS'da yo'q, lekin solishtirish uchun)
+    "XAGUSD": "SI=F",     # kumush futures (oltinning SMT jufti)
+    "DXY": "DX=F",        # dollar indeksi (forex SMT jufti)
+}
+
+# ---------------------------------------------------------------------------
+# SMT juftliklari (korrelyatsion aktivlar) - @Im-speculator/QT bo'yicha.
+# "inverse": narx yo'nalishi teskari (EURUSD vs DXY) - solishtirishda hisobga olinadi.
+# ---------------------------------------------------------------------------
+SMT_PAIRS = {
+    "EURUSD": [("GBPUSD", False)],
+    "GBPUSD": [("EURUSD", False)],
+    "USTEC": [("US500", False)],
+    "US500": [("USTEC", False)],
+    "XAUUSD": [("XAGUSD", False)],
 }
 
 # ---------------------------------------------------------------------------

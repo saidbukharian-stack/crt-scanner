@@ -18,6 +18,9 @@ from config import (
 )
 from levels import all_levels_for_symbol, _parse_hhmm
 from signals import scan_all_conditions
+from analysis import (
+    order_flow, draw_on_liquidity, find_fvgs, find_order_block, smt,
+)
 
 if DATA_SOURCE == "oanda":
     from oanda_connector import connector
@@ -87,12 +90,38 @@ def build_snapshot(symbol: str) -> str | None:
     lines.append(f"Kunlik (D1) bias: {_bias(df_d1)}")
     lines.append(f"H4 bias: {_bias(df_h4)}")
 
+    # Order flow (H4 struktura)
+    of = order_flow(df_h4)
+    lines.append(f"Order flow (H4): {of}")
+
+    # DOL (draw on liquidity)
+    pdh = next((lv.price for lv in levels if lv.name == "PDH"), None)
+    pdl = next((lv.price for lv in levels if lv.name == "PDL"), None)
+    lines.append(f"DOL: {draw_on_liquidity(df_d1, of, pdh, pdl)}")
+
     # Darajalar va narxning ularga nisbati
     lines.append("\nDARAJALAR (narx ularga nisbatan):")
     for lv in levels:
         rel = "ustida" if price > lv.price else "ostida"
         dist_pips = abs(price - lv.price)
         lines.append(f"  {lv.name:<28} {lv.price:.5f}  (narx {rel}, farq {dist_pips:.5f})")
+
+    # Key level: FVG va OB (H4 va M5)
+    fvgs = find_fvgs(df_h4, price, max_count=3) + find_fvgs(df_m5, price, max_count=2)
+    if fvgs:
+        lines.append("\nKEY LEVEL (to'ldirilmagan FVG'lar, narxga yaqin):")
+        for f in fvgs[:5]:
+            lines.append(f"  {f}")
+    lines.append(f"Order block (H4): {find_order_block(df_h4, of)}")
+
+    # SMT (korrelyatsion juftliklar)
+    smt_signals = smt(symbol, connector, "H4")
+    if smt_signals:
+        lines.append("\nSMT (korrelyatsion divergensiya):")
+        for s in smt_signals:
+            lines.append(f"  {s}")
+    else:
+        lines.append("\nSMT: juftliklarda divergensiya yo'q (yoki ma'lumot yetarli emas).")
 
     # So'nggi sweep'lar (oynalar ichida)
     if signals:
