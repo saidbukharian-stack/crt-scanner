@@ -4,8 +4,8 @@
 # Eslatma: GitHub cron aniq vaqtda emas, ~3-15 daqiqa kechikish bilan
 # ishlashi mumkin - alert tizimi uchun qabul qilingan kelishuv.
 #
-# Sozlash (bir marta): repo Settings -> Secrets and variables -> Actions:
-#   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
+# Sozlash (Secrets): TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID,
+#   GEMINI_API_KEY, GROQ_API_KEY (bepul LLM), KNOWLEDGE_MD (bilim bazasi matni)
 name: CRT Scanner
 
 on:
@@ -25,6 +25,13 @@ jobs:
   scan:
     runs-on: ubuntu-latest
     timeout-minutes: 8
+    env:
+      DATA_SOURCE: yahoo
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      LLM_PRIMARY: gemini
     steps:
       - uses: actions/checkout@v4
 
@@ -36,31 +43,41 @@ jobs:
       - name: Kutubxonalarni o'rnatish
         run: pip install -r requirements.txt
 
-      # Yuborilgan signallar ro'yxati va ochiq xayoliy savdolar
-      # ishga tushishlar orasida cache'da saqlanadi
-      - name: Signal holatini tiklash
+      # Bilim bazasi (docs/MODEL_KNOWLEDGE.md) public repoda yo'q (mualliflik
+      # huquqi) - u Secret'da saqlanadi va shu yerda faylga tiklanadi
+      - name: Bilim bazasini tiklash
+        env:
+          KNOWLEDGE_MD: ${{ secrets.KNOWLEDGE_MD }}
+        run: |
+          mkdir -p docs
+          printf '%s' "$KNOWLEDGE_MD" > docs/MODEL_KNOWLEDGE.md
+
+      # Yuborilgan signallar, ochiq savdolar va Telegram offset cache'da saqlanadi
+      - name: Holatni tiklash
         uses: actions/cache/restore@v4
         with:
           path: |
             data/notified.json
             data/trades.json
+            data/tg_offset.json
           key: notified-state-${{ github.run_id }}
           restore-keys: notified-state-
 
       - name: Skanerlash
-        env:
-          DATA_SOURCE: yahoo
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: python scanner.py --once
 
-      - name: Signal holatini saqlash
+      - name: Savol-javob (Telegram)
+        if: always()
+        run: python telegram_bot.py
+
+      - name: Holatni saqlash
         if: always()
         uses: actions/cache/save@v4
         with:
           path: |
             data/notified.json
             data/trades.json
+            data/tg_offset.json
           key: notified-state-${{ github.run_id }}
 
       # Forward-test natijalari (results/results.csv) doimiy bo'lishi uchun

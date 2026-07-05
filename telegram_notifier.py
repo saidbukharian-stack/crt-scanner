@@ -73,6 +73,22 @@ def send_telegram_message(text: str) -> bool:
 
 def notify_signal(signal: SweepSignal) -> bool:
     message = format_signal_message(signal)
+
+    # LLM tushuntirishi (Gemini/Groq sozlangan bo'lsa) - signalga qo'shiladi
+    try:
+        from llm_client import explain_signal, GEMINI_API_KEY, GROQ_API_KEY
+        if GEMINI_API_KEY or GROQ_API_KEY:
+            summary = (
+                f"{signal.symbol} | {signal.condition} | {signal.level_name} | "
+                f"{signal.direction} | daraja={signal.level_price:.5f} | "
+                f"close={signal.close_price:.5f} | vaqt(NY)={signal.sweep_candle_time}"
+            )
+            explanation = explain_signal(summary)
+            if explanation:
+                message += f"\n\n🤖 <b>LLM izohi:</b>\n{explanation}"
+    except Exception as exc:  # LLM ishlamasa signal baribir yuboriladi
+        logger.warning("LLM tushuntirish qo'shilmadi: %s", exc)
+
     return send_telegram_message(message)
 
 
