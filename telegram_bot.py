@@ -16,9 +16,11 @@ Buyruqlar:
 Ishga tushirish: python telegram_bot.py --poll
 """
 
+import argparse
 import json
 import logging
 import os
+import time
 
 import requests
 
@@ -105,8 +107,31 @@ def _handle_text(text: str) -> str:
     return answer or "⚠️ Kechirasiz, hozir javob bera olmadim (LLM limiti yoki xato)."
 
 
+def _process_updates(updates: list, offset: int) -> int:
+    """Xabarlarga javob beradi, yangi offset qaytaradi."""
+    max_id = offset
+    for upd in updates:
+        max_id = max(max_id, upd["update_id"])
+        msg = upd.get("message") or {}
+        text = msg.get("text")
+        chat_id = str(msg.get("chat", {}).get("id", ""))
+        if not text:
+            continue
+        # Faqat egaga javob (boshqalar botni ishlatib kvota yemasin)
+        if TELEGRAM_CHAT_ID and chat_id != str(TELEGRAM_CHAT_ID):
+            logger.info("Notanish chat_id %s - o'tkazildi", chat_id)
+            continue
+        logger.info("Savol: %s", text[:80])
+        reply = _handle_text(text)
+        try:
+            _tg("sendMessage", chat_id=chat_id, text=reply, parse_mode="HTML")
+        except requests.RequestException as exc:
+            logger.error("Javob yuborilmadi: %s", exc)
+    return max_id
+
+
 def poll_once():
-    """Yangi xabarlarni olib, har biriga javob beradi."""
+    """Bir marta yangi xabarlarni olib javob beradi (cron rejimi)."""
     if not TELEGRAM_BOT_TOKEN:
         logger.error("TELEGRAM_BOT_TOKEN yo'q")
         return
@@ -117,33 +142,55 @@ def poll_once():
     except requests.RequestException as exc:
         logger.error("getUpdates xato: %s", exc)
         return
-
     updates = data.get("result", [])
     if not updates:
         logger.info("Yangi xabar yo'q.")
         return
+    _save_offset(_process_updates(updates, offset))
 
-    max_id = offset
-    for upd in updates:
-        max_id = max(max_id, upd["update_id"])
-        msg = upd.get("message") or {}
-        text = msg.get("text")
-        chat_id = str(msg.get("chat", {}).get("id", ""))
-        if not text:
-            continue
-        # Faqat egaga javob beramiz (boshqalar botni ishlatib kvota yemasin)
-        if TELEGRAM_CHAT_ID and chat_id != str(TELEGRAM_CHAT_ID):
-            logger.info("Notanish chat_id %s - o'tkazildi", chat_id)
-            continue
-        logger.info("Savol: %s", text[:80])
-        reply = _handle_text(text)
+
+def serve(max_runtime_sec: int = 21000):
+    """
+    Uzluksiz long-polling: savol kelishi bilan bir necha soniyada javob beradi.
+    ~5h50m ishlaydi (GitHub Actions 6 soatlik limitidan xavfsiz kam), keyin
+    chiqadi - workflow uni qayta ishga tushiradi.
+    """
+    if not TELEGRAM_BOT_TOKEN:
+        logger.error("TELEGRAM_BOT_TOKEN yo'q")
+        return
+    logger.info("Bot serve rejimida ishga tushdi (long-polling).")
+    start = time.monotonic()
+    offset = _load_offset()
+    while time.monotonic() - start < max_runtime_sec:
         try:
-            _tg("sendMessage", chat_id=chat_id, text=reply, parse_mode="HTML")
+            # timeout=25: Telegram xabar kelguncha 25s kutadi (near-instant javob)
+            data = _tg_long("getUpdates", offset=offset + 1, timeout=25,
+                            allowed_updates=["message"])
         except requests.RequestException as exc:
-            logger.error("Javob yuborilmadi: %s", exc)
+            logger.warning("getUpdates xato: %s - 5s dan keyin qayta", exc)
+            time.sleep(5)
+            continue
+        updates = data.get("result", [])
+        if updates:
+            offset = _process_updates(updates, offset)
+            _save_offset(offset)
+    logger.info("Serve muddati tugadi, chiqilyapti (workflow qayta ishga tushiradi).")
 
-    _save_offset(max_id)
+
+def _tg_long(method: str, **params):
+    """Long-polling uchun _tg (HTTP timeout > polling timeout)."""
+    url = _API.format(token=TELEGRAM_BOT_TOKEN, method=method)
+    resp = requests.post(url, json=params, timeout=40)
+    resp.raise_for_status()
+    return resp.json()
 
 
 if __name__ == "__main__":
-    poll_once()
+    parser = argparse.ArgumentParser(description="CRT Telegram bot")
+    parser.add_argument("--serve", action="store_true",
+                        help="Uzluksiz long-polling (tez javob). Aks holda bir marta poll.")
+    args = parser.parse_args()
+    if args.serve:
+        serve()
+    else:
+        poll_once()

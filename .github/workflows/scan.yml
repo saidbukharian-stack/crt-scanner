@@ -52,23 +52,19 @@ jobs:
           mkdir -p docs
           printf '%s' "$KNOWLEDGE_MD" > docs/MODEL_KNOWLEDGE.md
 
-      # Yuborilgan signallar, ochiq savdolar va Telegram offset cache'da saqlanadi
+      # Yuborilgan signallar va ochiq savdolar cache'da saqlanadi
+      # (Telegram Q&A endi alohida bot.yml workflow'ida)
       - name: Holatni tiklash
         uses: actions/cache/restore@v4
         with:
           path: |
             data/notified.json
             data/trades.json
-            data/tg_offset.json
           key: notified-state-${{ github.run_id }}
           restore-keys: notified-state-
 
       - name: Skanerlash
         run: python scanner.py --once
-
-      - name: Savol-javob (Telegram)
-        if: always()
-        run: python telegram_bot.py
 
       - name: Holatni saqlash
         if: always()
@@ -77,7 +73,6 @@ jobs:
           path: |
             data/notified.json
             data/trades.json
-            data/tg_offset.json
           key: notified-state-${{ github.run_id }}
 
       # Forward-test natijalari (results/results.csv) doimiy bo'lishi uchun

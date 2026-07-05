@@ -1,0 +1,62 @@
+# Telegram Q&A bot - UZLUKSIZ long-polling (tez javob).
+#
+# GitHub Actions public repo uchun cheksiz bepul; bitta ish 6 soatgacha.
+# Bot ~5h50m tinglaydi (savol kelishi bilan bir necha soniyada javob),
+# keyin chiqadi; cron har 6 soatda qayta ishga tushiradi.
+name: CRT Bot (Q&A)
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"   # har 6 soatda qayta ishga tushirish
+  workflow_dispatch: {}      # qo'lda ishga tushirish
+
+concurrency:
+  group: crt-bot
+  cancel-in-progress: true   # yangi ishga tushish eskisini almashtiradi (bo'shliq yo'q)
+
+jobs:
+  bot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355     # ~5h55m (6 soatlik limitdan xavfsiz kam)
+    env:
+      DATA_SOURCE: yahoo
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      LLM_PRIMARY: gemini
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Kutubxonalarni o'rnatish
+        run: pip install -r requirements.txt
+
+      - name: Bilim bazasini tiklash
+        env:
+          KNOWLEDGE_MD: ${{ secrets.KNOWLEDGE_MD }}
+        run: |
+          mkdir -p docs data
+          printf '%s' "$KNOWLEDGE_MD" > docs/MODEL_KNOWLEDGE.md
+
+      # Telegram offset uzluksizlikni saqlash (xabar ikki marta javob olmasin)
+      - name: Offset tiklash
+        uses: actions/cache/restore@v4
+        with:
+          path: data/tg_offset.json
+          key: bot-offset-${{ github.run_id }}
+          restore-keys: bot-offset-
+
+      - name: Botni ishga tushirish (long-polling)
+        run: python telegram_bot.py --serve
+
+      - name: Offset saqlash
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data/tg_offset.json
+          key: bot-offset-${{ github.run_id }}
