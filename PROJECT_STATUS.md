@@ -138,10 +138,20 @@ Uch qatlam (kelishilgan):
   bilan tahlil qiladi. Bot: "/holat XAUUSD" yoki "EURUSD hozir qanday" ->
   jonli tahlil. Sinaldi (Groq): mazmunli CRT tahlili chiqdi. Weekend'da surat
   yupqa (faqat PDH/PDL), ish kunida Asia/London/CRT ham qo'shiladi.
-- Keyingi qadamlar: (1) dushanba jonli /holat + signal + forward-test kuzatuvi,
-  (2) Gemini kalitini to'g'rilash (ixtiyoriy). Kelajak: skanerда key level
-  (OB/FVG) va SMT avtomatik aniqlash -> surat boyiydi -> tahlil kuchayadi;
-  weekly profile bias; jonli SMT moduli.
+- TEZ JAVOB (2026-07-05): interaktiv bot sekin edi (10 daq cron). Yechim:
+  telegram_bot.py --serve (uzluksiz long-polling, timeout=25s, ~soniyalarда
+  javob), alohida bot.yml workflow (public repo = cheksiz bepul, ish 6 soat,
+  cron har 6 soatda qayta). scan.yml'dan Q&A ajratildi. Jonli sinaldi -
+  treyder "ideal ishlayapti" dedi.
+- ANALIZ MODULLARI (2026-07-05): analysis.py - FVG/OB key level aniqlash,
+  order flow (H4 swing HH/HL), DOL (kunlik close/wick + OF qoidalari), SMT
+  (korrelyatsion juftliklar: EUR/GBP, USTEC/US500, XAU/XAG). market_snapshot
+  boyitildi -> jonli tahlil ancha kuchli (XAUUSD sinovда: OF bullish, DOL
+  buy-side 4157, FVG'lar, OB 4042-4087). yahoo_connector bo'sh ma'lumotга
+  chidamli qilindi; DXY olib tashlandi (Yahoo ticker yo'q).
+- Keyingi qadamlar: (1) dushanba jonli kuzatuv (ish kunida surat yanada boy),
+  (2) Gemini kalitini to'g'rilash (ixtiyoriy). Kelajak: weekly profile bias,
+  IRL/ERL, key level'ni sweep bilan bog'lash (hozir daraja=sweep level).
 
 ### Sinovdan o'TMAGAN narsalar
 - Bozor ochiq paytdagi jonli skanerlash (test shanba kuni o'tkazildi, shu
