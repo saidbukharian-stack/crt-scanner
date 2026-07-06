@@ -180,6 +180,35 @@ def _recent_extreme(df: pd.DataFrame, window: int = 12):
     return fresh_high, fresh_low
 
 
+def dealing_range(df_h4: pd.DataFrame, lookback: int = 40):
+    """H4 dealing range: so'nggi swing high/low ekstremumlari + 50%."""
+    recent = df_h4.tail(lookback)
+    highs, lows = _swings(recent)
+    if not highs or not lows:
+        return None
+    dh = max(p for _, p in highs)
+    dl = min(p for _, p in lows)
+    if dh <= dl:
+        return None
+    return dh, dl, (dh + dl) / 2
+
+
+def premium_discount_ok(entry: float, direction: str, df_h4: pd.DataFrame) -> bool:
+    """
+    MMXM/ICT: faqat DISCOUNT'da long (BUY), PREMIUM'da short (SELL).
+    Dealing range 50% dan past = discount, yuqori = premium.
+    Range aniqlanmasa filtrlamaydi (True qaytaradi).
+    """
+    dr = dealing_range(df_h4)
+    if dr is None:
+        return True
+    _, _, mid = dr
+    if direction == "bullish_sweep":   # BUY - discount'da bo'lsin
+        return entry <= mid
+    else:                              # SELL - premium'da bo'lsin
+        return entry >= mid
+
+
 def smt(symbol: str, connector, timeframe: str = "H4") -> list[str]:
     """Korrelyatsion juftliklar bilan SMT divergensiyasini tekshiradi."""
     out = []

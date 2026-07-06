@@ -67,10 +67,9 @@ def _load_notified_state():
 
 def _save_notified_state():
     # Eski yozuvlarni tozalaymiz (3 kundan oshgan sweep endi qaytarilmaydi).
-    # sweep_candle_time 'YYYY-MM-DD HH:MM...' bilan boshlanadi - sana bo'yicha
-    # satr solishtirish yetarli.
+    # Dedup kaliti oxirgi element = sana (YYYY-MM-DD).
     cutoff = (datetime.now(NY_TZ) - timedelta(days=3)).strftime("%Y-%m-%d")
-    fresh = [list(k) for k in _already_notified if str(k[3])[:10] >= cutoff]
+    fresh = [list(k) for k in _already_notified if str(k[-1])[:10] >= cutoff]
     os.makedirs(os.path.dirname(_STATE_PATH), exist_ok=True)
     with open(_STATE_PATH, "w", encoding="utf-8") as f:
         json.dump(sorted(fresh), f, ensure_ascii=False, indent=0)
@@ -87,7 +86,15 @@ def scan_symbol(symbol: str, now_ny: datetime) -> list:
 
     levels = all_levels_for_symbol(df_m5, df_h4, df_d1, now_ny)
     signals = scan_all_conditions(df_m5, levels, symbol, SIGNAL_CONDITIONS)
-    return signals
+
+    # SIFAT FILTRI: premium/discount (faqat discount'da BUY, premium'da SELL)
+    from analysis import premium_discount_ok
+    filtered = [s for s in signals
+                if premium_discount_ok(s.close_price, s.direction, df_h4)]
+    if len(filtered) < len(signals):
+        logger.info("%s: P/D filtri %d dan %d signalни o'tkazdi",
+                    symbol, len(signals), len(filtered))
+    return filtered
 
 
 def run_once():
@@ -102,7 +109,10 @@ def run_once():
             continue
 
         for sig in signals:
-            key = (sig.symbol, sig.condition, sig.level_name, sig.sweep_candle_time)
+            # SPAM FIX: bir daraja + yo'nalish KUNIGA BIR MARTA signal beradi
+            # (avval har M5 sham uchun signal edi - bir daraja 12 martagacha).
+            day = str(sig.sweep_candle_time)[:10]
+            key = (sig.symbol, sig.condition, sig.level_name, sig.direction, day)
             if key in _already_notified:
                 continue
             _already_notified.add(key)

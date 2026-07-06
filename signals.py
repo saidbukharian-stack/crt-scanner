@@ -44,6 +44,25 @@ def _candle_in_windows(candle_time, windows) -> bool:
     return any(ws <= t < we for ws, we in windows)
 
 
+# Reversal (turtle soup) sifat filtri: sweep shamining darajaga qaragan
+# "dumi" (wick) shamning umumiy diapazonining kamida shu ulushi bo'lishi kerak.
+# MMXM "How Highs/Lows Form": reversal sham = uzun dumli rad etish; mayda poke emas.
+# Bugungi noise (1-pip sweep) shu bilan kesiladi. Tuning: 0.30.
+MIN_REJECT_TAIL_FRAC = 0.30
+
+
+def _reject_ok(candle, kind: str) -> bool:
+    rng = float(candle["high"]) - float(candle["low"])
+    if rng <= 0:
+        return False
+    o, c = float(candle["open"]), float(candle["close"])
+    if kind == "high":   # bearish sweep - yuqori dum (rad etish) uzun bo'lsin
+        tail = float(candle["high"]) - max(o, c)
+    else:                # bullish sweep - pastki dum uzun bo'lsin
+        tail = min(o, c) - float(candle["low"])
+    return (tail / rng) >= MIN_REJECT_TAIL_FRAC
+
+
 def detect_sweep(df_recent: pd.DataFrame, level: Level, condition_name: str,
                   symbol: str, lookback_candles: int = 12) -> list[SweepSignal]:
     """
@@ -70,7 +89,7 @@ def detect_sweep(df_recent: pd.DataFrame, level: Level, condition_name: str,
             # High sweep: wick darajadan yuqoriga chiqadi, close pastda yopiladi
             wicked_above = candle["high"] > level.price
             closed_below = candle["close"] < level.price
-            if wicked_above and closed_below:
+            if wicked_above and closed_below and _reject_ok(candle, "high"):
                 signals.append(SweepSignal(
                     symbol=symbol,
                     condition=condition_name,
@@ -86,7 +105,7 @@ def detect_sweep(df_recent: pd.DataFrame, level: Level, condition_name: str,
         else:  # level.kind == "low"
             wicked_below = candle["low"] < level.price
             closed_above = candle["close"] > level.price
-            if wicked_below and closed_above:
+            if wicked_below and closed_above and _reject_ok(candle, "low"):
                 signals.append(SweepSignal(
                     symbol=symbol,
                     condition=condition_name,
