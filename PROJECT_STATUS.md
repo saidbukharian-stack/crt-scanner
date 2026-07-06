@@ -163,9 +163,23 @@ Uch qatlam (kelishilgan):
   kechikadi, forex deyarli real vaqt. Validatsiyaga ta'sir yo'q (forward-test
   yopilgan sham natijasini o'lchaydi). Jonli alert uchun H4 setup'da sezilmaydi.
   Haqiqiy yechim = broker feed (mt5/oanda, real vaqt) jonli bosqichda.
-- Keyingi qadamlar: (1) dushanba jonli kuzatuv (surat boy + Yahoo throttling),
-  (2) Gemini kalitini to'g'rilash (ixtiyoriy). Kelajak: weekly profile bias,
-  IRL/ERL, key level'ni sweep bilan bog'lash.
+- BIRINCHI JONLI KUN (2026-07-06, dushanba): 177 yozuv, LEKIN spam bug -
+  bir daraja 12 martagacha qayta signal (dedup har M5 sham uchun edi). Distinct
+  38 setup. Raw win 45%, M5 CISD win 67% (tasdiq qoidasi isbotlandi!). Distinct
+  ~-2R (deyarli nol). Xom sweep'lar o'zicha foydasiz -> sifat filtri kerak.
+- MMXM 8 VIDEO o'rganildi (2026-07-06/07) - bias/sifat mavzulari, xotira:
+  memory/mmxm-videos-batch3.md. Barchasi MODEL_KNOWLEDGE.md ga qo'shildi
+  (16b bo'lim), KNOWLEDGE_MD secret yangilandi.
+- SIFAT FILTRLARI QO'SHILDI (2026-07-07, ertaga natija tekshiriladi):
+  (1) SPAM FIX: dedup kaliti (symbol,condition,level,direction,day) - daraja
+  kuniga 1 marta signal. (2) REVERSAL SIFAT: signals._reject_ok - sweep
+  shamining darajaga dumi >= 0.30 diapazon (mayda 1-pip pokelar kesiladi;
+  MMXM "how highs/lows form"). (3) PREMIUM/DISCOUNT: analysis.premium_discount_ok
+  - faqat discount'da BUY, premium'da SELL (H4 dealing range 50%). Birlik
+  sinovlar o'tdi. Bulutda ishllayapti.
+- Keyingi bosqich (2026-07-07 natijaga qarab): double-purge bir-sham detektori,
+  IRL/ERL avtomatik DOL, exact-equal-highs, TGIF, news-kalendar. Yana:
+  Gemini kalitini to'g'rilash, Yahoo throttling kuzatuvi.
 
 ### Sinovdan o'TMAGAN narsalar
 - Bozor ochiq paytdagi jonli skanerlash (test shanba kuni o'tkazildi, shu
