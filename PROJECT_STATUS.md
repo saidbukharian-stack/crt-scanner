@@ -177,9 +177,21 @@ Uch qatlam (kelishilgan):
   MMXM "how highs/lows form"). (3) PREMIUM/DISCOUNT: analysis.premium_discount_ok
   - faqat discount'da BUY, premium'da SELL (H4 dealing range 50%). Birlik
   sinovlar o'tdi. Bulutda ishllayapti.
-- Keyingi bosqich (2026-07-07 natijaga qarab): double-purge bir-sham detektori,
-  IRL/ERL avtomatik DOL, exact-equal-highs, TGIF, news-kalendar. Yana:
-  Gemini kalitini to'g'rilash, Yahoo throttling kuzatuvi.
+- GRAFIK-RASM SIGNAL (2026-07-07): treyder skrinshot kabi vizual g'oya so'radi.
+  chart_image.py - matplotlib candlestick + sweep darajasi + kirish/stop/1R/2R/3R/
+  CRT50 chiziqlari + sweep o'qi. telegram_notifier.send_telegram_photo (sendPhoto).
+  notify_signal endi rasm (matn caption bilan) yuboradi. Sinaldi (EURUSD test rasm
+  Telegram'ga bordi). matplotlib requirements'ga qo'shildi, bulutда ishladi.
+- ROBOFOREX savol: mt5_connector tayyor, LEKIN MT5 Python faqat Windows+terminal
+  ochiq bo'lganda (bulutда/Linux ishlamaydi). Safar davomida Yahoo/OANDA; RoboForex
+  faqat lokal (kompyuter yoniq) yoki qaytgach.
+- DUSHANBA EURUSD 9AM setup TIZIM USHLADI (tekshirildi): bullish CRT_9AM_5AM_Low
+  09:55 raw = all_targets 3R (treyder grafigiga mos). Bonus: 09:25 bearish 9AM high
+  = 4.49R (double-purge, ikki tomon to'ladi). Dushanba: raw 46%/+58R, m5_cisd
+  60%/+71R (m5_cisd yaxshiroq). Seshanba yarim+aralash, ishonchsiz.
+- Keyingi bosqich (chorshanba toza natijaga qarab): double-purge bir-sham detektori,
+  IRL/ERL avtomatik DOL, exact-equal-highs, TGIF, news-kalendar, /holat uchun ham
+  grafik. Yana: Gemini kalitini to'g'rilash, Yahoo throttling kuzatuvi.
 
 ### Sinovdan o'TMAGAN narsalar
 - Bozor ochiq paytdagi jonli skanerlash (test shanba kuni o'tkazildi, shu
