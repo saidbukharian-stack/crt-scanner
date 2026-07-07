@@ -20,6 +20,7 @@ from levels import all_levels_for_symbol, _parse_hhmm
 from signals import scan_all_conditions
 from analysis import (
     order_flow, draw_on_liquidity, find_fvgs, find_order_block, smt,
+    irl_erl_map, equal_highs_lows, detect_double_purge,
 )
 
 if DATA_SOURCE == "oanda":
@@ -98,6 +99,21 @@ def build_snapshot(symbol: str) -> str | None:
     pdh = next((lv.price for lv in levels if lv.name == "PDH"), None)
     pdl = next((lv.price for lv in levels if lv.name == "PDL"), None)
     lines.append(f"DOL: {draw_on_liquidity(df_d1, of, pdh, pdl)}")
+
+    # IRL/ERL keyingi draw (H4)
+    lines.append(f"IRL/ERL: {irl_erl_map(df_h4, price)}")
+
+    # Bir-sham double purge (M5 - kuchli reversal signature)
+    dp = detect_double_purge(df_m5)
+    if dp:
+        lines.append(f"⚡ {dp}")
+
+    # Exact equal highs/lows (kuchli DOL magniti)
+    eqs = equal_highs_lows(df_h4)
+    if eqs:
+        lines.append("KUCHLI DOL (equal highs/lows):")
+        for e in eqs:
+            lines.append(f"  {e}")
 
     # Darajalar va narxning ularga nisbati
     lines.append("\nDARAJALAR (narx ularga nisbatan):")

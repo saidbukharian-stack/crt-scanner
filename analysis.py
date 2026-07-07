@@ -144,26 +144,130 @@ def find_fvgs(df: pd.DataFrame, price: float, max_count: int = 4) -> list[str]:
     return out
 
 
-def find_order_block(df: pd.DataFrame, of: str) -> str:
+def _unfilled_fvgs(df: pd.DataFrame):
+    """To'ldirilmagan FVG'lar strukturasi: (kind, lo, hi) ro'yxati."""
+    h = df["high"].values
+    lo = df["low"].values
+    out = []
+    for i in range(2, len(df)):
+        if h[i - 2] < lo[i]:  # bullish FVG
+            g_lo, g_hi = float(h[i - 2]), float(lo[i])
+            if df["low"].values[i:].min() > g_lo:
+                out.append(("bullish", g_lo, g_hi))
+        if lo[i - 2] > h[i]:  # bearish FVG
+            g_lo, g_hi = float(h[i]), float(lo[i - 2])
+            if df["high"].values[i:].max() < g_hi:
+                out.append(("bearish", g_lo, g_hi))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# IRL/ERL — keyingi draw on liquidity (MMXM: ERL olinsa->IRL, IRL olinsa->ERL)
+# IRL = FVG (imbalance), ERL = eski swing high/low
+# ---------------------------------------------------------------------------
+def irl_erl_map(df: pd.DataFrame, price: float) -> str:
+    highs, lows = _swings(df)
+    erl_above = min((p for _, p in highs if p > price), default=None)
+    erl_below = max((p for _, p in lows if p < price), default=None)
+    fvgs = _unfilled_fvgs(df)
+    irl_above = min((lo for _, lo, hi in fvgs if lo > price), default=None)
+    irl_below = max((hi for _, lo, hi in fvgs if hi < price), default=None)
+
+    def f(x):
+        return f"{x:.5f}" if x is not None else "yo'q"
+
+    return (
+        f"ERL (eski high/low): yuqorida {f(erl_above)}, pastda {f(erl_below)}. "
+        f"IRL (FVG): yuqorida {f(irl_above)}, pastda {f(irl_below)}. "
+        "Qoida: ERL olinsa keyingi draw IRL; IRL olinsa keyingi draw ERL."
+    )
+
+
+# ---------------------------------------------------------------------------
+# Exact equal highs/lows — kuchli likvidlik magniti (2 alohida swing teng)
+# ---------------------------------------------------------------------------
+def equal_highs_lows(df: pd.DataFrame) -> list[str]:
+    rng = (df["high"] - df["low"]).tail(30).median()
+    tol = float(rng) * 0.15 if rng and rng > 0 else 0
+    highs, lows = _swings(df)
+    out = []
+    # teng highlar (ikki alohida swing, tol ichida)
+    for a in range(len(highs)):
+        for b in range(a + 1, len(highs)):
+            if abs(highs[a][1] - highs[b][1]) <= tol:
+                lvl = max(highs[a][1], highs[b][1])
+                out.append(f"Equal highs ~{lvl:.5f} (kuchli buy-side DOL magniti)")
+                break
+    for a in range(len(lows)):
+        for b in range(a + 1, len(lows)):
+            if abs(lows[a][1] - lows[b][1]) <= tol:
+                lvl = min(lows[a][1], lows[b][1])
+                out.append(f"Equal lows ~{lvl:.5f} (kuchli sell-side DOL magniti)")
+                break
+    return out[:4]
+
+
+# ---------------------------------------------------------------------------
+# Double Purge (bir-sham) — bitta sham high VA low'ni oladi, ichida yopiladi
+# MMXM DPT: kuchli overbought/oversold reversal signature
+# ---------------------------------------------------------------------------
+def detect_double_purge(df: pd.DataFrame, lookback: int = 15) -> str | None:
+    h = df["high"].values
+    lo = df["low"].values
+    c = df["close"].values
+    t = df["time_ny"].values
+    start = max(1, len(df) - lookback)
+    for i in range(len(df) - 1, start - 1, -1):
+        took_high = h[i] > h[i - 1]
+        took_low = lo[i] < lo[i - 1]
+        closed_within = lo[i - 1] <= c[i] <= h[i - 1]
+        if took_high and took_low and closed_within:
+            return (f"Bir-sham DOUBLE PURGE @ {str(t[i])[:16]}: high {h[i]:.5f} va "
+                    f"low {lo[i]:.5f} ikkovi olindi, ichida yopildi "
+                    f"(kuchli reversal signature — katta harakat ehtimoli)")
+    return None
+
+
+def find_order_block(df: pd.DataFrame, of: str, lookback: int = 30) -> str:
     """
-    Oddiy OB: ekspansiyadan oldingi qarama-qarshi rangdagi oxirgi sham.
-    Bullish OF'da - oxirgi down-close sham; bearish'da - oxirgi up-close.
+    OBYEKTIV order block (Sham/CRT ta'rifi): likvidlikni PURGE qilib (eski
+    swing high/low oldi) keyin ENGULF bo'lgan (narx ortiga yopildi) sham(lar).
+    Oddiy "oxirgi qarshi sham" emas.
+
+    Bullish OB: down-close sham eski swing LOW'ni purge qildi, keyin biror
+      sham uning HIGH'i ustida yopildi (engulf).
+    Bearish OB: up-close sham eski swing HIGH'ni purge qildi, keyin biror
+      sham uning LOW'i ostida yopildi.
     """
-    recent = df.tail(20).reset_index(drop=True)
+    recent = df.tail(lookback).reset_index(drop=True)
     o = recent["open"].values
     c = recent["close"].values
     hi = recent["high"].values
     lo = recent["low"].values
+    highs, lows = _swings(recent)
+    swing_high_prices = [p for _, p in highs]
+    swing_low_prices = [p for _, p in lows]
+    n = len(recent)
+
     if of.startswith("bullish"):
-        # oxirgidan orqaga: oxirgi down-close (c<o) shamni topamiz
-        for i in range(len(recent) - 2, -1, -1):
-            if c[i] < o[i]:
-                return f"bullish OB (oxirgi down-close): {lo[i]:.5f}-{hi[i]:.5f}"
+        for i in range(n - 2, 0, -1):
+            purged = any(lo[i] < slp < o[i] for slp in swing_low_prices) or \
+                     (i >= 1 and lo[i] < lo[i - 1])
+            if c[i] < o[i] and purged:  # down-close + sell-side purge
+                engulfed = any(c[j] > hi[i] for j in range(i + 1, n))
+                if engulfed:
+                    return (f"bullish OB {lo[i]:.5f}-{hi[i]:.5f} "
+                            f"(sell-side purge + engulf)")
     elif of.startswith("bearish"):
-        for i in range(len(recent) - 2, -1, -1):
-            if c[i] > o[i]:
-                return f"bearish OB (oxirgi up-close): {lo[i]:.5f}-{hi[i]:.5f}"
-    return "OB aniq emas (order flow neytral)"
+        for i in range(n - 2, 0, -1):
+            purged = any(o[i] < shp < hi[i] for shp in swing_high_prices) or \
+                     (i >= 1 and hi[i] > hi[i - 1])
+            if c[i] > o[i] and purged:  # up-close + buy-side purge
+                engulfed = any(c[j] < lo[i] for j in range(i + 1, n))
+                if engulfed:
+                    return (f"bearish OB {lo[i]:.5f}-{hi[i]:.5f} "
+                            f"(buy-side purge + engulf)")
+    return "obyektiv OB topilmadi (purge+engulf yo'q)"
 
 
 # ---------------------------------------------------------------------------
