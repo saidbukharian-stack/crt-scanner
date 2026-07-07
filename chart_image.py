@@ -108,8 +108,8 @@ def render_signal_chart(sig: SweepSignal, bars: int = 70) -> str | None:
 
         yon = "LONG" if sig.direction == "bullish_sweep" else "SHORT"
         tcolor = "#26a69a" if sig.direction == "bullish_sweep" else "#ef5350"
-        ax.set_title(f"{sig.symbol}   {yon}   |   {sig.condition}   |   "
-                     f"{str(sig.sweep_candle_time)[:16]} NY",
+        ax.set_title(f"{sig.symbol}  [{MT5_TIMEFRAME_ENTRY}]  {yon}  |  "
+                     f"{sig.condition}  |  sweep {str(sig.sweep_candle_time)[:16]} NY",
                      fontsize=10, color=tcolor, fontweight="bold")
         ax.set_xticks([])
         ax.grid(axis="y", alpha=0.15)
@@ -137,25 +137,28 @@ def _draw_candles(ax, df):
                                    facecolor=color, edgecolor=color, zorder=3))
 
 
-def render_holat_chart(symbol: str, bars: int = 80) -> str | None:
+def render_holat_chart(symbol: str, timeframe: str = "M15", bars: int = 96) -> str | None:
     """
-    /holat uchun jonli grafik: narx + asosiy darajalar (PDH/PDL, Asia/London,
-    yaqin CRT) + narxga yaqin FVG'lar. Xato bo'lsa None (matn baribir yuboriladi).
+    /holat uchun jonli grafik: narx + asosiy darajalar (PDH/PDL, Asia/London)
+    + narxga yaqin FVG'lar. M15 (96 sham ~24 soat) - kunlik darajalar ko'rinadi.
+    Xato bo'lsa None (matn baribir yuboriladi).
     """
     try:
         from levels import all_levels_for_symbol
-        from analysis import find_fvgs
         if not connector.connect():
             return None
         now_ny = datetime.now(NY_TZ)
-        df = connector.get_candles(symbol, MT5_TIMEFRAME_ENTRY, count=bars)
+        df = connector.get_candles(symbol, timeframe, count=bars)
+        df_m5 = connector.get_candles(symbol, MT5_TIMEFRAME_ENTRY, count=200)
         df_h4 = connector.get_candles(symbol, MT5_TIMEFRAME_HTF, count=60)
         df_d1 = connector.get_candles(symbol, "D1", count=10)
         if df.empty or df_h4.empty or df_d1.empty:
             return None
         df = df.tail(bars).reset_index(drop=True)
         price = float(df.iloc[-1]["close"])
-        levels = all_levels_for_symbol(df, df_h4, df_d1, now_ny)
+        last_bar_time = str(df.iloc[-1]["time_ny"])[:16]
+        levels = all_levels_for_symbol(df_m5 if not df_m5.empty else df,
+                                       df_h4, df_d1, now_ny)
 
         fig, ax = plt.subplots(figsize=(10, 6), dpi=110)
         _draw_candles(ax, df)
@@ -189,7 +192,8 @@ def render_holat_chart(symbol: str, bars: int = 80) -> str | None:
                 if df["high"].values[i:].max() < g_hi and abs((g_lo + g_hi) / 2 - price) < (df["high"].max() - df["low"].min()) * 0.5:
                     ax.axhspan(g_lo, g_hi, color="#ef5350", alpha=0.10, zorder=0)
 
-        ax.set_title(f"{symbol}  jonli holat  |  {now_ny.strftime('%Y-%m-%d %H:%M')} NY",
+        ax.set_title(f"{symbol}  [{timeframe}]  jonli holat  |  "
+                     f"oxirgi sham {last_bar_time} NY",
                      fontsize=10, fontweight="bold")
         ax.set_xticks([])
         ax.grid(axis="y", alpha=0.15)
