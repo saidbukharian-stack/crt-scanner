@@ -241,3 +241,6 @@ m5_cisd,2026-07-07 09:05:00-04:00,2026-07-07T09:46:14-04:00,XAUUSD,crt_range_swe
 raw,2026-07-07 09:00:00-04:00,2026-07-07T09:46:15-04:00,XAUUSD,crt_range_sweep,CRT_9AM_CRT_5AM_High,bearish_sweep,4180.39990234375,4190.60009765625,10.2001953125,stop,False,False,False,False,0.89,-1.08
 m5_cisd,2026-07-07 09:30:00-04:00,2026-07-07T09:46:15-04:00,XAUUSD,crt_range_sweep,CRT_9AM_CRT_5AM_High,bearish_sweep,4175.7998046875,4183.89990234375,8.10009765625,stop,False,False,False,False,-0.0,-1.93
 raw,2026-07-07 09:45:00-04:00,2026-07-07T10:00:28-04:00,USTEC,crt_range_sweep,CRT_9AM_CRT_1AM_London_Low,bullish_sweep,29574.25,29528.5,45.75,stop,False,False,False,False,0.0,-1.53
+raw,2026-07-07 09:30:00-04:00,2026-07-07T10:25:43-04:00,US500,crt_range_sweep,CRT_9AM_CRT_1AM_London_High,bearish_sweep,7578.0,7587.5,9.5,all_targets,True,True,True,True,3.21,-0.29
+raw,2026-07-07 09:30:00-04:00,2026-07-07T10:25:43-04:00,US500,crt_range_sweep,CRT_9AM_CRT_5AM_High,bearish_sweep,7578.0,7587.5,9.5,all_targets,,True,True,True,3.21,-0.29
+m5_cisd,2026-07-07 09:55:00-04:00,2026-07-07T15:15:56-04:00,EURUSD,crt_range_sweep,CRT_9AM_CRT_1AM_London_High,bearish_sweep,1.1437721252441406,1.144426703453064,0.0006545782089233398,all_targets,True,True,True,True,3.39,-0.4
