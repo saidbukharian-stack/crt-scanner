@@ -10,11 +10,13 @@ import logging
 import os
 import tempfile
 
+from datetime import datetime
+
 import matplotlib
 matplotlib.use("Agg")  # serverda (GUI yo'q) ishlashi uchun
 import matplotlib.pyplot as plt
 
-from config import DATA_SOURCE, MT5_TIMEFRAME_ENTRY
+from config import DATA_SOURCE, MT5_TIMEFRAME_ENTRY, MT5_TIMEFRAME_HTF, NY_TZ
 from signals import SweepSignal
 
 if DATA_SOURCE == "oanda":
@@ -122,4 +124,81 @@ def render_signal_chart(sig: SweepSignal, bars: int = 70) -> str | None:
         return path
     except Exception:
         logger.exception("Grafik chizishda xato")
+        return None
+
+
+def _draw_candles(ax, df):
+    for i, row in df.reset_index(drop=True).iterrows():
+        o, h, l, c = row["open"], row["high"], row["low"], row["close"]
+        color = "#26a69a" if c >= o else "#ef5350"
+        ax.plot([i, i], [l, h], color=color, linewidth=0.8, zorder=2)
+        ax.add_patch(plt.Rectangle((i - 0.3, min(o, c)), 0.6,
+                                   abs(c - o) or (h - l) * 0.001,
+                                   facecolor=color, edgecolor=color, zorder=3))
+
+
+def render_holat_chart(symbol: str, bars: int = 80) -> str | None:
+    """
+    /holat uchun jonli grafik: narx + asosiy darajalar (PDH/PDL, Asia/London,
+    yaqin CRT) + narxga yaqin FVG'lar. Xato bo'lsa None (matn baribir yuboriladi).
+    """
+    try:
+        from levels import all_levels_for_symbol
+        from analysis import find_fvgs
+        if not connector.connect():
+            return None
+        now_ny = datetime.now(NY_TZ)
+        df = connector.get_candles(symbol, MT5_TIMEFRAME_ENTRY, count=bars)
+        df_h4 = connector.get_candles(symbol, MT5_TIMEFRAME_HTF, count=60)
+        df_d1 = connector.get_candles(symbol, "D1", count=10)
+        if df.empty or df_h4.empty or df_d1.empty:
+            return None
+        df = df.tail(bars).reset_index(drop=True)
+        price = float(df.iloc[-1]["close"])
+        levels = all_levels_for_symbol(df, df_h4, df_d1, now_ny)
+
+        fig, ax = plt.subplots(figsize=(10, 6), dpi=110)
+        _draw_candles(ax, df)
+        n = len(df)
+
+        # Asosiy darajalar (ko'plab CRT emas - shovqin kam bo'lsin)
+        show = {"PDH": "#e53935", "PDL": "#1e88e5",
+                "Asia_High": "#8e24aa", "Asia_Low": "#8e24aa",
+                "London_High": "#f9a825", "London_Low": "#f9a825"}
+        for lv in levels:
+            if lv.name in show:
+                ax.axhline(lv.price, color=show[lv.name], linestyle="--",
+                           linewidth=1.0, alpha=0.8, zorder=1)
+                ax.text(0, lv.price, f" {lv.name}", color=show[lv.name],
+                        fontsize=7.5, va="bottom", ha="left")
+
+        # Joriy narx
+        ax.axhline(price, color="#111", linewidth=1.2, zorder=1)
+        ax.text(n - 1, price, f" {price:.5f}", color="#111",
+                fontsize=8, va="bottom", ha="right", fontweight="bold")
+
+        # Narxga yaqin FVG'lar (soyali zona)
+        for i in range(2, n):
+            hi2, lo0 = df["high"].values, df["low"].values
+            if hi2[i - 2] < lo0[i]:  # bullish FVG
+                g_lo, g_hi = float(hi2[i - 2]), float(lo0[i])
+                if df["low"].values[i:].min() > g_lo and abs((g_lo + g_hi) / 2 - price) < (df["high"].max() - df["low"].min()) * 0.5:
+                    ax.axhspan(g_lo, g_hi, color="#26a69a", alpha=0.10, zorder=0)
+            if lo0[i - 2] > hi2[i]:  # bearish FVG
+                g_lo, g_hi = float(hi2[i]), float(lo0[i - 2])
+                if df["high"].values[i:].max() < g_hi and abs((g_lo + g_hi) / 2 - price) < (df["high"].max() - df["low"].min()) * 0.5:
+                    ax.axhspan(g_lo, g_hi, color="#ef5350", alpha=0.10, zorder=0)
+
+        ax.set_title(f"{symbol}  jonli holat  |  {now_ny.strftime('%Y-%m-%d %H:%M')} NY",
+                     fontsize=10, fontweight="bold")
+        ax.set_xticks([])
+        ax.grid(axis="y", alpha=0.15)
+        ax.margins(x=0.02)
+        fig.tight_layout()
+        path = os.path.join(tempfile.gettempdir(), f"holat_{symbol}.png")
+        fig.savefig(path)
+        plt.close(fig)
+        return path
+    except Exception:
+        logger.exception("Holat grafigini chizishda xato")
         return None

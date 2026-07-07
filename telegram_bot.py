@@ -98,6 +98,15 @@ def _handle_text(text: str) -> str:
         analysis = analyze_market(snapshot)
         if not analysis:
             return "⚠️ Tahlil qilib bo'lmadi (LLM limiti yoki xato)."
+        # Jonli grafik-rasm (narx + darajalar + FVG) - matn tahlil bilan
+        try:
+            from chart_image import render_holat_chart
+            from telegram_notifier import send_telegram_photo
+            chart = render_holat_chart(symbol)
+            if chart:
+                send_telegram_photo(chart, f"📈 {symbol} — jonli holat")
+        except Exception as exc:
+            logger.warning("Holat grafigi yuborilmadi: %s", exc)
         return f"📈 <b>{symbol} — jonli tahlil</b>\n\n{analysis}"
 
     # Aks holda: bilim bazasidan savol-javob
