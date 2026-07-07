@@ -71,6 +71,25 @@ def send_telegram_message(text: str) -> bool:
         return False
 
 
+def send_telegram_photo(photo_path: str, caption: str = "") -> bool:
+    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
+        return False
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
+    try:
+        with open(photo_path, "rb") as f:
+            resp = requests.post(
+                url,
+                data={"chat_id": TELEGRAM_CHAT_ID,
+                      "caption": caption[:1024], "parse_mode": "HTML"},
+                files={"photo": f}, timeout=30,
+            )
+        resp.raise_for_status()
+        return True
+    except (requests.RequestException, OSError) as exc:
+        logger.error("Telegram rasm yuborishda xato: %s", exc)
+        return False
+
+
 def notify_signal(signal: SweepSignal) -> bool:
     message = format_signal_message(signal)
 
@@ -97,6 +116,20 @@ def notify_signal(signal: SweepSignal) -> bool:
                 message += f"\n\n🤖 <b>LLM izohi:</b>\n{explanation}"
     except Exception as exc:  # LLM ishlamasa signal baribir yuboriladi
         logger.warning("LLM tushuntirish qo'shilmadi: %s", exc)
+
+    # Grafik-rasm (candlestick + kirish/stop/maqsad) - matn caption bilan.
+    # Rasm chiqmasa yoki juda uzun bo'lsa - matnni alohida yuboramiz.
+    try:
+        from chart_image import render_signal_chart
+        chart = render_signal_chart(signal)
+        if chart:
+            if len(message) <= 1024:
+                return send_telegram_photo(chart, message)
+            # matn uzun: rasmni yuboramiz, matnni alohida
+            send_telegram_photo(chart, format_signal_message(signal))
+            return send_telegram_message(message)
+    except Exception as exc:
+        logger.warning("Grafik yuborilmadi: %s", exc)
 
     return send_telegram_message(message)
 
