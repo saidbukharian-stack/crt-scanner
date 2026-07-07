@@ -149,7 +149,7 @@ def render_holat_chart(symbol: str, timeframe: str = "M15", bars: int = 96) -> s
             return None
         now_ny = datetime.now(NY_TZ)
         df = connector.get_candles(symbol, timeframe, count=bars)
-        df_m5 = connector.get_candles(symbol, MT5_TIMEFRAME_ENTRY, count=200)
+        df_m5 = connector.get_candles(symbol, MT5_TIMEFRAME_ENTRY, count=400)
         df_h4 = connector.get_candles(symbol, MT5_TIMEFRAME_HTF, count=60)
         df_d1 = connector.get_candles(symbol, "D1", count=10)
         if df.empty or df_h4.empty or df_d1.empty:

@@ -69,7 +69,7 @@ def build_snapshot(symbol: str) -> str | None:
         return None
     now_ny = datetime.now(NY_TZ)
 
-    df_m5 = connector.get_candles(symbol, MT5_TIMEFRAME_ENTRY, count=200)
+    df_m5 = connector.get_candles(symbol, MT5_TIMEFRAME_ENTRY, count=400)
     df_h4 = connector.get_candles(symbol, MT5_TIMEFRAME_HTF, count=60)
     df_d1 = connector.get_candles(symbol, "D1", count=10)
     if df_m5.empty or df_h4.empty or df_d1.empty:
