@@ -31,6 +31,10 @@ UTC_TZ = ZoneInfo("UTC")
 # ---------------------------------------------------------------------------
 DATA_SOURCE = os.getenv("DATA_SOURCE", "mt5").strip().lower()
 
+# Grafik manbai: 1 = TradingView screenshot (LOKAL, brauzer kerak),
+# 0 = matplotlib (bulutда ishlaydi). Bulutда TV cloud IP'ni bloklaydi.
+USE_TV_SCREENSHOT = os.getenv("USE_TV_SCREENSHOT", "0").strip() == "1"
+
 # ---------------------------------------------------------------------------
 # Kuzatiladigan instrumentlar
 # MT5'dagi aniq symbol nomi brokerga qarab farq qilishi mumkin

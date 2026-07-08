@@ -16,8 +16,25 @@ import matplotlib
 matplotlib.use("Agg")  # serverda (GUI yo'q) ishlashi uchun
 import matplotlib.pyplot as plt
 
-from config import DATA_SOURCE, MT5_TIMEFRAME_ENTRY, MT5_TIMEFRAME_HTF, NY_TZ
+from config import (DATA_SOURCE, MT5_TIMEFRAME_ENTRY, MT5_TIMEFRAME_HTF,
+                    NY_TZ, USE_TV_SCREENSHOT)
 from signals import SweepSignal
+
+# Bizning timeframe -> TradingView interval
+_TV_INTERVAL = {"M1": "1", "M5": "5", "M15": "15", "M30": "30",
+                "H1": "60", "H4": "240", "D1": "D"}
+
+
+def _try_tv(symbol: str, timeframe: str) -> str | None:
+    """USE_TV_SCREENSHOT=1 bo'lsa TradingView screenshot oladi (lokal)."""
+    if not USE_TV_SCREENSHOT:
+        return None
+    try:
+        from tv_screenshot import capture
+        return capture(symbol, _TV_INTERVAL.get(timeframe, "15"))
+    except Exception as exc:
+        logger.warning("TV screenshot olinmadi (%s), matplotlib'ga o'tilyapti", exc)
+        return None
 
 if DATA_SOURCE == "oanda":
     from oanda_connector import connector
@@ -51,9 +68,13 @@ def _plan_levels(sig: SweepSignal):
 
 def render_signal_chart(sig: SweepSignal, bars: int = 70) -> str | None:
     """
-    Signal uchun candlestick grafik PNG yasaydi, fayl yo'lini qaytaradi.
+    Signal uchun grafik PNG yasaydi, fayl yo'lini qaytaradi.
+    USE_TV_SCREENSHOT=1 (lokal) -> TradingView screenshot; aks holda matplotlib.
     Xato bo'lsa None (signal baribir matn bilan yuboriladi).
     """
+    tv = _try_tv(sig.symbol, MT5_TIMEFRAME_ENTRY)
+    if tv:
+        return tv
     try:
         df = connector.get_candles(sig.symbol, MT5_TIMEFRAME_ENTRY, count=bars)
         if df.empty:
@@ -141,8 +162,12 @@ def render_holat_chart(symbol: str, timeframe: str = "M15", bars: int = 96) -> s
     """
     /holat uchun jonli grafik: narx + asosiy darajalar (PDH/PDL, Asia/London)
     + narxga yaqin FVG'lar. M15 (96 sham ~24 soat) - kunlik darajalar ko'rinadi.
+    USE_TV_SCREENSHOT=1 (lokal) -> TradingView screenshot.
     Xato bo'lsa None (matn baribir yuboriladi).
     """
+    tv = _try_tv(symbol, timeframe)
+    if tv:
+        return tv
     try:
         from levels import all_levels_for_symbol
         if not connector.connect():
