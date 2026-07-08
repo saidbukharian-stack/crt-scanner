@@ -32,16 +32,23 @@ TV_SYMBOL_MAP = {
     "US500": "OANDA:SPX500USD",
 }
 
-_COOKIES_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                             "docs", "tradingview_cookies.txt")
+_DOCS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "docs")
+
+
+def _find_cookies_file() -> str | None:
+    """docs/ ichidan istalgan tradingview cookie faylini topadi."""
+    import glob
+    hits = glob.glob(os.path.join(_DOCS_DIR, "*tradingview*cookies*.txt"))
+    return hits[0] if hits else None
 
 
 def _load_cookies():
     """Netscape cookies.txt -> Playwright cookie ro'yxati (bo'lmasa None)."""
-    if not os.path.exists(_COOKIES_PATH):
+    path = _find_cookies_file()
+    if not path:
         return None
     cookies = []
-    with open(_COOKIES_PATH, encoding="utf-8") as f:
+    with open(path, encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if not line or line.startswith("#"):
@@ -114,6 +121,18 @@ def capture(symbol: str, interval: str = "15", wait_ms: int = 9000) -> str | Non
                         page.wait_for_timeout(400)
                 except Exception:
                     pass
+
+            # Suzuvchi panellarni yashiramiz (toza grafik uchun)
+            try:
+                page.add_style_tag(content="""
+                    div[class*="floating-toolbar"],
+                    div[class*="drawingToolbar"],
+                    div[data-name="drawing-toolbar"],
+                    div[class*="tv-floating-toolbar"] { display: none !important; }
+                """)
+                page.wait_for_timeout(600)
+            except Exception:
+                pass
 
             # Faqat grafik konteynerni suratga olamiz (butun sahifa emas)
             shot = None
