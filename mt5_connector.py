@@ -107,7 +107,11 @@ class MT5Connector:
             )
             return
 
-        freshest = None  # (tick_yoshi_sekund, server_devoriy_vaqti)
+        # ENG YANGI tick = eng KATTA tick.time (epoch).
+        # DIQQAT: "|age| eng kichigi" deb tanlash XATO edi - musbat offsetda
+        # (masalan UTC+3) eskirgan tick kichikroq |age| beradi va eng eskisi
+        # "eng yangi" deb tanlanardi -> offset 1 soatga kam chiqardi.
+        latest_tick = 0
         symbols = mt5.symbols_get()
         if not symbols:
             raise RuntimeError("MT5'da hech qanday symbol topilmadi.")
@@ -115,15 +119,13 @@ class MT5Connector:
             tick = mt5.symbol_info_tick(sym.name)
             if tick is None or tick.time == 0:
                 continue
-            server_wall = datetime.fromtimestamp(tick.time, tz=timezone.utc)
-            age = (utc_now - server_wall).total_seconds()
-            if freshest is None or abs(age) < abs(freshest[0]):
-                freshest = (age, server_wall)
+            if tick.time > latest_tick:
+                latest_tick = tick.time
 
-        if freshest is None:
+        if latest_tick == 0:
             raise RuntimeError("Hech bir symbolda tick topilmadi.")
 
-        _, server_wall = freshest
+        server_wall = datetime.fromtimestamp(latest_tick, tz=timezone.utc)
         offset = round((server_wall - utc_now).total_seconds() / 3600)
         if not (-12 <= offset <= 14):
             raise RuntimeError(
