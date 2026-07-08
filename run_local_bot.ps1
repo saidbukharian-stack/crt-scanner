@@ -1,4 +1,4 @@
-# CRT Bot (savol-javob + /holat) — LOKAL rejim
+﻿# CRT Bot (savol-javob + /holat) — LOKAL rejim
 # =============================================
 # Telegram botga savol yozasiz, /holat so'raysiz.
 # Narx MT5'dan, grafik TradingView'dan.

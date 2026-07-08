@@ -1,4 +1,4 @@
-# CRT Scanner — LOKAL rejim (MT5 narx + TradingView grafik)
+﻿# CRT Scanner — LOKAL rejim (MT5 narx + TradingView grafik)
 # ==========================================================
 # Signal skaneri. Narx MT5 terminalidan, grafiklar TradingView'dan.
 #

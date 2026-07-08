@@ -1,4 +1,4 @@
-﻿# CRT Scanner - UZLUKSIZ skan (tez signal).
+# CRT Scanner - UZLUKSIZ skan (tez signal).
 #
 # Skaner har 2 daqiqada tekshiradi (uzluksiz loop), ~5h30m ishlaydi, keyin
 # chiqadi; cron har 6 soatda qayta ishga tushiradi. Public repo = cheksiz bepul.
