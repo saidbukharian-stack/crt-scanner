@@ -11,6 +11,7 @@ MetaQuotes'ning o'zining demo serverini tanlash mumkin (terminal ochilganda
 """
 
 import logging
+import time
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
@@ -34,6 +35,12 @@ _TIMEFRAME_MAP = {
     "H1": "TIMEFRAME_H1",
     "H4": "TIMEFRAME_H4",
     "D1": "TIMEFRAME_D1",
+}
+
+# Sham davomiyligi (sekund) - tarix yangiligini tekshirish uchun
+_TIMEFRAME_SECONDS = {
+    "M1": 60, "M5": 300, "M15": 900, "M30": 1800,
+    "H1": 3600, "H4": 14400, "D1": 86400,
 }
 
 
@@ -146,7 +153,27 @@ class MT5Connector:
             return pd.DataFrame()
 
         tf_const = getattr(mt5, _TIMEFRAME_MAP[timeframe])
-        rates = mt5.copy_rates_from_pos(symbol, tf_const, 0, count)
+        bar_sec = _TIMEFRAME_SECONDS[timeframe]
+
+        # MT5 tarixni ASINXRON yuklaydi: symbol yangi tanlangan bo'lsa
+        # birinchi so'rov eski keshni qaytaradi. Yangi ma'lumot kelguncha
+        # qayta urinamiz (oxirgi sham tick vaqtidan juda orqada qolmasin).
+        rates = None
+        for attempt in range(6):
+            rates = mt5.copy_rates_from_pos(symbol, tf_const, 0, count)
+            if rates is None or len(rates) == 0:
+                time.sleep(1.0)
+                continue
+            tick = mt5.symbol_info_tick(symbol)
+            if tick is None or tick.time == 0:
+                break  # tick yo'q (bozor yopiq) - bor ma'lumot bilan ketamiz
+            lag = tick.time - int(rates[-1]["time"])
+            if lag <= 3 * bar_sec:
+                break  # yangi
+            logger.info("%s %s tarixi eskirgan (%.0f daq), yuklanmoqda...",
+                        symbol, timeframe, lag / 60)
+            time.sleep(1.5)
+
         if rates is None or len(rates) == 0:
             logger.warning("Ma'lumot olinmadi: %s %s", symbol, timeframe)
             return pd.DataFrame()
