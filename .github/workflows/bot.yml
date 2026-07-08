@@ -51,6 +51,16 @@ jobs:
           key: bot-offset-${{ github.run_id }}
           restore-keys: bot-offset-
 
+      # /hisob buyrug'i uchun xayoliy balans (skaner ishi saqlagan cache'dan,
+      # faqat o'qish uchun). Ish davomida yangilanmaydi - skanerning oxirgi
+      # saqlangan holatini ko'rsatadi.
+      - name: Xayoliy hisob balansini tiklash
+        uses: actions/cache/restore@v4
+        with:
+          path: data/paper_account.json
+          key: scanner-state-none    # ataylab mos kelmaydi -> restore-keys ishlaydi
+          restore-keys: scanner-state-
+
       - name: Botni ishga tushirish (long-polling)
         run: python telegram_bot.py --serve
 

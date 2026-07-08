@@ -19,6 +19,7 @@ from dataclasses import dataclass
 import pandas as pd
 
 from levels import Level
+from stdv import compute_stdv, stdv_text
 
 
 @dataclass
@@ -34,6 +35,8 @@ class SweepSignal:
     direction: str          # "bullish_sweep" (low supurildi) | "bearish_sweep" (high supurildi)
     # CRT signallari uchun: diapazon o'rtasi (50% maqsad). Boshqalarda None.
     crt_mid: float | None = None
+    # STDV proyeksiyasi (manipulyatsiya oyog'idan -2/-2.5/-4). Topilmasa None.
+    stdv: dict | None = None
 
 
 def _candle_in_windows(candle_time, windows) -> bool:
@@ -101,6 +104,7 @@ def detect_sweep(df_recent: pd.DataFrame, level: Level, condition_name: str,
                     close_price=float(candle["close"]),
                     direction="bearish_sweep",
                     crt_mid=crt_mid,
+                    stdv=compute_stdv(df_recent, candle["time_ny"], "bearish_sweep"),
                 ))
         else:  # level.kind == "low"
             wicked_below = candle["low"] < level.price
@@ -117,6 +121,7 @@ def detect_sweep(df_recent: pd.DataFrame, level: Level, condition_name: str,
                     close_price=float(candle["close"]),
                     direction="bullish_sweep",
                     crt_mid=crt_mid,
+                    stdv=compute_stdv(df_recent, candle["time_ny"], "bullish_sweep"),
                 ))
 
     return signals
@@ -208,6 +213,9 @@ def format_trade_plan(sig: SweepSignal) -> str:
     ]
     if sig.crt_mid is not None:
         lines.append(f"• CRT 50%: {sig.crt_mid:.5f}")
+    txt = stdv_text(sig.stdv)
+    if txt:
+        lines.append(txt)
     lines.append("<i>Mexanik reja, moliyaviy maslahat emas — qaror o'zingizda.</i>")
     return "\n".join(lines)
 

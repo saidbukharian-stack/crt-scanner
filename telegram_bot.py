@@ -24,6 +24,7 @@ import time
 
 import requests
 
+import paper_account
 from config import DB_PATH, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 from llm_client import answer_question, analyze_market, GEMINI_API_KEY, GROQ_API_KEY
 from market_snapshot import build_snapshot, resolve_symbol
@@ -44,6 +45,8 @@ _HELP = (
     "• /holat XAUUSD\n"
     "• EURUSD hozir qanday?\n"
     "• USTEC holati\n\n"
+    "<b>3) Xayoliy hisob</b> — forward-test balansi:\n"
+    "• /hisob\n\n"
     "Eslatma: men maslahatchi instrumentman, savdo qarori o'zingizda."
 )
 
@@ -83,6 +86,8 @@ def _handle_text(text: str) -> str:
     low = stripped.lower()
     if low in ("/start", "/help", "help", "start"):
         return _HELP
+    if low.startswith("/hisob") or low in ("hisob", "balans"):
+        return paper_account.summary()
     if not (GEMINI_API_KEY or GROQ_API_KEY):
         return "⚠️ LLM hali sozlanmagan (GEMINI_API_KEY / GROQ_API_KEY yo'q)."
 
