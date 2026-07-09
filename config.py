@@ -203,6 +203,15 @@ MGMT_PARTIAL_FRAC = 0.5        # 50% maqsadda qancha ulush yopiladi (0.5 = yarmi
 MGMT_BE_FORCE_R = 2.0          # narx shu R'ga yetsa, to'siq bo'lsa ham majburiy B/E
 
 # ---------------------------------------------------------------------------
+# OTE (Optimal Trade Entry) varianti - ICT tutoriallaridan (2026-07-09).
+# CISD (MSS) shakllangач darrov kirmay, impuls oyog'iga fib tortib narx
+# 62-79% retracement'ga qaytishini kutamiz. Maqsad=likvidlik (bir xil),
+# faqat KIRISH aniqroq -> m5_cisd bilan toza A/B.
+# ---------------------------------------------------------------------------
+OTE_REQUIRE_WINDOW = True      # kirish 08:30-11:00 NY oynasida bo'lishi shart (ICT qoidasi)
+OTE_REQUIRE_ROUND = False      # institutsional yaxlit daraja filtri (hozircha yumshoq)
+
+# ---------------------------------------------------------------------------
 # Telegram sozlamalari (.env faylidan o'qiladi, kodga token yozilmaydi!)
 # ---------------------------------------------------------------------------
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
