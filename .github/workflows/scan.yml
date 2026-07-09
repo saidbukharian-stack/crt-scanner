@@ -62,9 +62,9 @@ jobs:
             data/notified.json
             data/trades.json
             data/paper_account.json
-            results/results_v2.csv
-          key: scanner-state-${{ github.run_id }}
-          restore-keys: scanner-state-
+            results/results_v3.csv
+          key: scanner-state-v3-${{ github.run_id }}
+          restore-keys: scanner-state-v3-
 
       - name: Skanerlash (uzluksiz)
         run: python scanner.py
@@ -77,8 +77,8 @@ jobs:
             data/notified.json
             data/trades.json
             data/paper_account.json
-            results/results_v2.csv
-          key: scanner-state-${{ github.run_id }}
+            results/results_v3.csv
+          key: scanner-state-v3-${{ github.run_id }}
 
       # Forward-test natijalari (results/) repoga - telefondan ko'rish
       - name: Natijalarni repoga saqlash

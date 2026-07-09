@@ -130,20 +130,34 @@ def killzone_windows(for_date: datetime) -> list[tuple[datetime, datetime]]:
     ]
 
 
+def _pair_high_low(levels: list[Level]) -> list[Level]:
+    """
+    High/Low juftini bir-biriga bog'laydi: har birining paired_price'i
+    ikkinchisining narxiga teng bo'ladi. Bu diapazonning QARSHI cheti =
+    likvidlik maqsadi (100%), o'rtasi esa 50%. Sweep signali shu juft orqali
+    "50% va qarshi likvidlik" maqsadlarini oladi.
+    """
+    if len(levels) == 2:
+        levels[0].paired_price = levels[1].price
+        levels[1].paired_price = levels[0].price
+    return levels
+
+
 def all_levels_for_symbol(df_intraday: pd.DataFrame, df_h4: pd.DataFrame,
                            df_d1: pd.DataFrame, for_date: datetime) -> list[Level]:
     """Bitta symbol uchun barcha yoqilgan turdagi darajalarni yig'ib qaytaradi."""
     kz = killzone_windows(for_date)
 
     levels: list[Level] = []
-    # PDH/PDL va Asia H/L - faqat killzone (London/NY) oynalarida signal beradi
-    for lv in previous_day_high_low(df_d1):
+    # PDH/PDL va Asia H/L - faqat killzone (London/NY) oynalarida signal beradi.
+    # Har juft bog'lanadi: PDL supurilsa maqsad = PDH (qarshi likvidlik), 50% = o'rtasi.
+    for lv in _pair_high_low(previous_day_high_low(df_d1)):
         lv.windows = kz
         levels.append(lv)
-    for lv in session_high_low(df_intraday, "asia", for_date):
+    for lv in _pair_high_low(session_high_low(df_intraday, "asia", for_date)):
         lv.windows = kz
         levels.append(lv)
-    levels += session_high_low(df_intraday, "london", for_date)
+    levels += _pair_high_low(session_high_low(df_intraday, "london", for_date))
     for model_name in CRT_MODELS:
         levels += crt_levels_for_model(df_h4, model_name, for_date)
     return levels

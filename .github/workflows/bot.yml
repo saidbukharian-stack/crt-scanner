@@ -58,8 +58,8 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: data/paper_account.json
-          key: scanner-state-none    # ataylab mos kelmaydi -> restore-keys ishlaydi
-          restore-keys: scanner-state-
+          key: scanner-state-v3-none    # ataylab mos kelmaydi -> restore-keys ishlaydi
+          restore-keys: scanner-state-v3-
 
       - name: Botni ishga tushirish (long-polling)
         run: python telegram_bot.py --serve

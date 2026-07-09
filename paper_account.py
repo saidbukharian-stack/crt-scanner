@@ -23,7 +23,8 @@ logger = logging.getLogger(__name__)
 
 _ACCOUNT_PATH = os.path.join(os.path.dirname(DB_PATH), "paper_account.json")
 
-VARIANTS = ("raw", "m5_cisd", "m5_managed")
+# "raw" olib tashlandi (2026-07-09): xom purge barcha o'lchovda minusda edi.
+VARIANTS = ("m5_cisd", "m5_managed")
 
 
 def _load() -> dict:
@@ -67,8 +68,7 @@ def apply_pnl(variant: str, net_r: float, risk_amount: float) -> tuple[float, fl
 def summary() -> str:
     """Telegram uchun qisqa hisobot."""
     data = _load()
-    labels = {"raw": "Xom (purge)", "m5_cisd": "M5 CISD",
-              "m5_managed": "M5 + boshqaruv"}
+    labels = {"m5_cisd": "M5 CISD (boshqaruvsiz)", "m5_managed": "M5 + boshqaruv"}
     lines = [f"💰 <b>Xayoliy hisob</b> (boshlang'ich ${PAPER_START_BALANCE:,.0f}, "
              f"risk {PAPER_RISK_PCT}%)"]
     for v in VARIANTS:

@@ -4,35 +4,28 @@ Outcome Tracker (forward-test)
 Har yuborilgan signal uchun XAYOLIY savdo ochib, natijasini keyingi
 skanlarda avtomatik o'lchaydi - treyder ishtirokisiz signal sifatini baholash.
 
-UCH VARIANT parallel o'lchanadi:
-  - "raw"        : purge (sweep) shami yopilishida darrov kirish (M5 tasdiqsiz)
-  - "m5_cisd"    : purge'dan keyin M5 CISD tasdig'i shakllangach kirish
-                   (TTrades IC-CISD; kirish=CISD close, stop=swing high/low)
-  - "m5_managed" : m5_cisd bilan BIR XIL kirish/stop, lekin SAVDO BOSHQARUVI bilan:
-                   qisman yopish + breakeven + STDV maqsadlari.
-                   (qo'shildi 2026-07-08)
+IKKI VARIANT (treyder bilan kelishilgan, 2026-07-09):
+  - "m5_cisd"    : M5 CISD tasdig'idan keyin kirish, boshqaruvsiz
+                   (to'liq pozitsiya likvidlikkacha yoki stopgacha ushlanadi)
+  - "m5_managed" : BIR XIL kirish, lekin SAVDO BOSHQARUVI bilan:
+                   50%'da yarim olish + breakeven + qolgani likvidlikkacha
 
-Nega uchinchi variant m5_cisd bilan bir xil kirishda? Chunki shunda
-"boshqaruv natijani yaxshiladimi?" degan savolga TOZA A/B javob chiqadi —
-kirish bir xil, faqat boshqaruv farq qiladi.
+"raw" (xom purge) variant OLIB TASHLANDI: barcha o'lchovlarda minusda edi,
+treyder "xom signalda savdo ochilmasin" dedi. Endi faqat M5 CISD tasdiqli
+kirish o'lchanadi.
+
+MAQSAD = LIKVIDLIK (STDV emas):
+  • 50%  = diapazon o'rtasi (crt_mid) - yarim olish + breakeven nuqtasi
+  • 100% = diapazonning qarshi cheti (qarshi likvidlik) - asosiy maqsad
+  STDV -2/-2.5/-4 faqat QO'SHIMCHA ma'lumot sifatida yoziladi (maqsad emas).
 
 Umumiy qoidalar:
   Muddat  = kirish kuni 17:00 NY; yetmasa "expired" (qolgan ulush close'da yopiladi)
   Bir sham ichida stop+maqsad = KONSERVATIV stop
-  m5 variantlari muddatgacha CISD shakllanmasa = "no_m5_entry" (winrate'ga kirmaydi)
+  Muddatgacha CISD shakllanmasa = "no_m5_entry" (winrate'ga kirmaydi)
 
-raw / m5_cisd maqsadlari : CRT-50% (faqat CRT signali) + 1R/2R/3R
-m5_managed maqsadlari    : MGMT_PARTIAL_AT_R da yarim yopish, qolgani STDV -4 gacha
-
-BOSHQARUV MANTIG'I (m5_managed):
-  1) Narx MGMT_PARTIAL_AT_R (1R) ga yetsa -> yarim pozitsiya yopiladi (foyda qulflandi)
-  2) Breakeven: narx MGMT_BE_TRIGGER_R ga yetgach, kirish bilan joriy narx
-     orasida TO'LDIRILMAGAN FVG qolmagan bo'lsa -> stop kirishga ko'chadi.
-     Agar FVG qolgan bo'lsa, narx uni to'ldirish uchun qaytishi tabiiy —
-     shuning uchun kutamiz (MGMT_BE_FORCE_R ga yetguncha).
-  3) Qolgan ulush STDV -4 (yoki 3R) da yopiladi, yetmasa 17:00 NY close'da.
-
-Natijalar: results/results.csv (repoga commit) + Telegram.
+Natijalar: results/results_v3.csv (repoga commit) + Telegram.
+Har savdoga `source` ustuni (mt5 / yahoo) yoziladi - lokal va bulutni ajratish uchun.
 Holat: data/trades.json, data/paper_account.json (Actions cache).
 """
 
@@ -44,9 +37,7 @@ from datetime import datetime, timedelta
 
 import paper_account
 from analysis import _unfilled_fvgs
-from config import (DB_PATH, MGMT_BE_FORCE_R, MGMT_BE_TRIGGER_R,
-                    MGMT_PARTIAL_AT_R, MGMT_PARTIAL_FRAC, MGMT_RUNNER_TARGET,
-                    NY_TZ)
+from config import DATA_SOURCE, DB_PATH, MGMT_BE_FORCE_R, MGMT_PARTIAL_FRAC, NY_TZ
 from signals import SweepSignal, detect_cisd
 from telegram_notifier import send_telegram_message
 
@@ -54,25 +45,19 @@ logger = logging.getLogger(__name__)
 
 _TRADES_PATH = os.path.join(os.path.dirname(DB_PATH), "trades.json")
 RESULTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
-# v2 = uchinchi variant (m5_managed) + STDV + $ ustunlari qo'shilgan sxema.
-# Eski results.csv o'z holicha qoladi (2026-07-06..08 ma'lumoti) - bulut eski
-# kodda ishlayotgan paytda ikkalasi bir faylga yozib ustunlarni buzmasin.
-RESULTS_CSV = os.path.join(RESULTS_DIR, "results_v2.csv")
+# v3 = raw olib tashlandi + likvidlik maqsadlari + source ustuni.
+RESULTS_CSV = os.path.join(RESULTS_DIR, "results_v3.csv")
 
 _CSV_COLUMNS = [
-    "variant", "entry_time_ny", "resolved_time_ny", "symbol", "condition",
-    "level_name", "direction", "entry", "sl", "r_size", "outcome",
-    "hit_crt_50", "hit_1r", "hit_2r", "hit_3r",
-    "hit_stdv_2", "hit_stdv_2_5", "hit_stdv_4",
-    # STDV maqsad narxlari - keyinchalik "runner -2 da chiqsa nima bo'lardi?"
-    # kabi savollarni CSV'dan qayta hisoblash uchun
+    "variant", "source", "entry_time_ny", "resolved_time_ny", "symbol",
+    "condition", "level_name", "direction", "entry", "sl", "r_size", "outcome",
+    "hit_50", "hit_liquidity", "t50_px", "t100_px",
+    # STDV - qo'shimcha ma'lumot (maqsad emas)
     "stdv_2_px", "stdv_2_5_px", "stdv_4_px",
     "mfe_r", "mae_r", "net_r", "risk_usd", "pnl_usd", "balance_after",
 ]
 
 _EXPIRY_HOUR_NY = 17  # forex kuni yopilishi
-
-_STDV_KEYS = ("stdv_2", "stdv_2_5", "stdv_4")
 
 
 # ---------------------------------------------------------------------------
@@ -103,26 +88,27 @@ def _sign(direction: str) -> int:
     return 1 if direction == "bullish_sweep" else -1
 
 
-def _build_targets(entry: float, stop: float, direction: str, crt_mid):
-    """raw / m5_cisd uchun maqsad narxlari + R hajmi + yo'nalish belgisi."""
+def _targets_for(entry: float, stop: float, direction: str,
+                 crt_mid, liquidity) -> tuple[dict, float, int]:
+    """
+    Likvidlik maqsadlarini quradi:
+      t50  = crt_mid (diapazon o'rtasi)
+      t100 = liquidity (qarshi cheti)
+    Faqat kirishdan OLDINDA (foyda tomonida) turganlarini oladi.
+    Agar t100 yo'q bo'lsa - oxirgi chora sifatida 2R.
+    Qaytaradi: (targets{name:px}, r, sign)
+    """
     sign = _sign(direction)
     r = (entry - stop) if sign == 1 else (stop - entry)
-    targets = {
-        "1r": entry + sign * r,
-        "2r": entry + sign * 2 * r,
-        "3r": entry + sign * 3 * r,
-    }
+    targets: dict[str, float] = {}
     if crt_mid is not None and sign * (crt_mid - entry) > 0:
-        targets["crt_50"] = crt_mid
+        targets["50"] = crt_mid
+    if liquidity is not None and sign * (liquidity - entry) > 0:
+        targets["liquidity"] = liquidity
+    if "liquidity" not in targets:
+        # juftlanmagan daraja - oxirgi chora
+        targets["liquidity"] = entry + sign * 2 * r
     return targets, r, sign
-
-
-def _valid_stdv_targets(stdv: dict | None, entry: float, sign: int) -> dict:
-    """STDV darajalaridan faqat kirishdan OLDINDA turganlarini qaytaradi."""
-    if not stdv:
-        return {}
-    return {k: px for k, px in stdv.get("levels", {}).items()
-            if sign * (px - entry) > 0}
 
 
 # ---------------------------------------------------------------------------
@@ -133,42 +119,25 @@ def register_trade(sig: SweepSignal):
     expiry = _expiry_for(entry_dt).isoformat()
     common = {
         "symbol": sig.symbol,
+        "source": DATA_SOURCE,
         "condition": sig.condition,
         "level_name": sig.level_name,
         "direction": sig.direction,
         "crt_mid": sig.crt_mid,
+        "liquidity": sig.liquidity_target,
         "stdv": sig.stdv,
-        "entry_time": sig.sweep_candle_time,   # purge vaqti (m5 uchun boshlanish nuqtasi)
+        "entry_time": sig.sweep_candle_time,   # purge vaqti (m5 boshlanish nuqtasi)
         "expiry_time": expiry,
     }
     trades = _load_trades()
-
-    # 1) RAW variant: purge close'ida darrov active
-    entry = sig.close_price
-    stop = sig.sweep_low if sig.direction == "bullish_sweep" else sig.sweep_high
-    targets, r, _ = _build_targets(entry, stop, sig.direction, sig.crt_mid)
-    if r > 0:
-        raw = dict(common)
-        raw.update({
-            "variant": "raw", "status": "active",
-            "entry": entry, "sl": stop, "r": r,
-            "targets": targets, "hits": {k: False for k in targets},
-            "mfe": entry, "mae": entry,
-            "risk_usd": paper_account.risk_usd("raw"),
-        })
-        trades.append(raw)
-    else:
-        logger.warning("raw savdo ochilmadi (r<=0): %s %s", sig.symbol, sig.level_name)
-
-    # 2-3) M5 variantlari: pending - CISD keyingi skanlarda qidiriladi
+    # Ikkala variant ham M5 CISD kutadi (pending). Xom purge'da hech narsa ochilmaydi.
     for variant in ("m5_cisd", "m5_managed"):
         m5 = dict(common)
         m5.update({"variant": variant, "status": "pending",
                    "risk_usd": paper_account.risk_usd(variant)})
         trades.append(m5)
-
     _save_trades(trades)
-    logger.info("Xayoliy savdo(lar) ochildi: %s %s %s (raw + m5_cisd + m5_managed)",
+    logger.info("Xayoliy savdo(lar) kutilmoqda (M5 CISD): %s %s %s (m5_cisd + m5_managed)",
                 sig.symbol, sig.level_name, sig.direction)
 
 
@@ -196,7 +165,14 @@ def update_trades(connector):
                     continue          # no_m5_entry / m5_bad_r - yozildi, yopildi
                 still_open.append(tr)  # pending yoki yangi active
             else:  # active
-                walker = _walk_managed if tr["variant"] == "m5_managed" else _walk_trade
+                # Migratsiya himoyasi: eski sxemadagi (v2 va oldingi) ochiq
+                # savdolar "liquidity" maqsadiga ega emas yoki olib tashlangan
+                # "raw" varianti - ularni jim tashlab yuboramiz (crash bo'lmasin).
+                if tr["variant"] == "raw" or "liquidity" not in tr.get("targets", {}):
+                    logger.info("Eski sxemadagi ochiq savdo tashlandi: %s %s",
+                                tr.get("symbol"), tr.get("variant"))
+                    continue
+                walker = _walk_managed if tr["variant"] == "m5_managed" else _walk_cisd
                 resolved = walker(tr, df)
                 if resolved is None:
                     still_open.append(tr)
@@ -209,10 +185,8 @@ def update_trades(connector):
 
 def _try_activate_m5(tr: dict, df) -> dict | None:
     """
-    Pending m5 savdo uchun CISD qidiradi (m5_cisd va m5_managed uchun bir xil).
-    - CISD topilsa: tr'ni active qilib to'ldiradi, None qaytaradi.
-    - Muddat o'tsa: no_m5_entry natijasini yozadi, None qaytaradi.
-    - Hali shakllanmagan: tr'ni pending holicha qaytaradi.
+    Pending savdo uchun CISD qidiradi (m5_cisd va m5_managed uchun bir xil).
+    CISD topilsa active qiladi; muddat o'tsa no_m5_entry yozadi.
     """
     purge_dt = datetime.fromisoformat(tr["entry_time"])
     expiry_dt = datetime.fromisoformat(tr["expiry_time"])
@@ -220,7 +194,8 @@ def _try_activate_m5(tr: dict, df) -> dict | None:
     cisd = detect_cisd(df, purge_dt, tr["direction"])
     if cisd is not None:
         entry, stop = cisd["entry"], cisd["stop"]
-        targets, r, sign = _build_targets(entry, stop, tr["direction"], tr.get("crt_mid"))
+        targets, r, _ = _targets_for(entry, stop, tr["direction"],
+                                      tr.get("crt_mid"), tr.get("liquidity"))
         if r <= 0:
             _record_noentry(tr, "m5_bad_r")
             return None
@@ -235,7 +210,6 @@ def _try_activate_m5(tr: dict, df) -> dict | None:
                     tr["variant"], tr["symbol"], tr["level_name"], entry, stop)
         return None
 
-    # CISD hali yo'q - muddat o'tdimi?
     last_time = df["time_ny"].iloc[-1]
     if last_time >= expiry_dt:
         _record_noentry(tr, "no_m5_entry")
@@ -244,18 +218,15 @@ def _try_activate_m5(tr: dict, df) -> dict | None:
 
 
 # ---------------------------------------------------------------------------
-# Boshqaruvsiz yurish (raw, m5_cisd) - eski xatti-harakat
+# Boshqaruvsiz yurish (m5_cisd): to'liq pozitsiya likvidlikkacha yoki stopgacha
 # ---------------------------------------------------------------------------
-def _walk_trade(tr: dict, df) -> tuple[str, float] | None:
-    """
-    Savdoni kirishdan keyingi shamlar bo'ylab yuritadi (boshqaruvsiz).
-    Qaytaradi: (outcome, net_r) yoki None (hali ochiq).
-    """
+def _walk_cisd(tr: dict, df) -> tuple[str, float] | None:
     entry_dt = datetime.fromisoformat(tr["entry_time"])
     expiry_dt = datetime.fromisoformat(tr["expiry_time"])
     entry, r, sl = tr["entry"], tr["r"], tr["sl"]
     is_long = tr["direction"] == "bullish_sweep"
     sign = _sign(tr["direction"])
+    liq = tr["targets"]["liquidity"]
 
     after = df[df["time_ny"] > entry_dt]
     prev_close = entry
@@ -265,24 +236,21 @@ def _walk_trade(tr: dict, df) -> tuple[str, float] | None:
 
         hi, low = float(candle["high"]), float(candle["low"])
         if is_long:
-            tr["mfe"] = max(tr["mfe"], hi)
-            tr["mae"] = min(tr["mae"], low)
+            tr["mfe"] = max(tr["mfe"], hi); tr["mae"] = min(tr["mae"], low)
         else:
-            tr["mfe"] = min(tr["mfe"], low)
-            tr["mae"] = max(tr["mae"], hi)
+            tr["mfe"] = min(tr["mfe"], low); tr["mae"] = max(tr["mae"], hi)
 
         # KONSERVATIV: avval stop
         if (is_long and low <= sl) or (not is_long and hi >= sl):
             return "stop", -1.0
 
         for name, price in tr["targets"].items():
-            if tr["hits"][name]:
-                continue
-            if (is_long and hi >= price) or (not is_long and low <= price):
+            if not tr["hits"][name] and ((is_long and hi >= price) or (not is_long and low <= price)):
                 tr["hits"][name] = True
 
-        if all(tr["hits"].values()):
-            return "all_targets", 3.0
+        # Likvidlik olindi - to'liq yopamiz
+        if (is_long and hi >= liq) or (not is_long and low <= liq):
+            return "liquidity", sign * (liq - entry) / r
 
         prev_close = float(candle["close"])
 
@@ -290,21 +258,13 @@ def _walk_trade(tr: dict, df) -> tuple[str, float] | None:
 
 
 # ---------------------------------------------------------------------------
-# Boshqaruvli yurish (m5_managed)
+# Boshqaruvli yurish (m5_managed): 50% da yarim + breakeven + likvidlik
 # ---------------------------------------------------------------------------
 def _pullback_obstacle(seg, entry: float, price: float, is_long: bool) -> bool:
     """
     Kirish bilan joriy narx orasida narxni ORQAGA TORTADIGAN to'ldirilmagan
-    FVG bormi?
-
-    LONG'da yuqoriga ketgan impuls o'zidan pastda bullish FVG qoldiradi —
-    narx uni to'ldirish uchun qaytishi juda ehtimolli. Bunday holda stopni
-    breakeven'ga ko'chirsak, oddiy retracement bizni bekorga yopadi.
-
-    ESLATMA: obyektiv Order Block shu imbalansni yaratgan shamning o'zi —
-    ya'ni deyarli har doim FVG bilan bir joyda turadi. Shuning uchun FVG
-    tekshiruvi OB'ni ham amalda qamrab oladi. Alohida OB tekshiruvi hozircha
-    qo'shilmagan.
+    FVG bormi? (Obyektiv OB imbalansni yaratgan shamning o'zi, ya'ni FVG bilan
+    bir joyda turadi - FVG tekshiruvi OB'ni ham qamrab oladi.)
     """
     if len(seg) < 3:
         return False
@@ -321,11 +281,8 @@ def _pullback_obstacle(seg, entry: float, price: float, is_long: bool) -> bool:
 
 def _walk_managed(tr: dict, df) -> tuple[str, float] | None:
     """
-    m5_managed: qisman yopish + breakeven + STDV maqsadlari.
-
-    Har skanda kirishdan boshlab QAYTA yuriladi (holat saqlanmaydi), shuning
-    uchun funksiya sof: bir xil shamlar -> bir xil natija, ikki marta
-    hisoblanish xavfi yo'q.
+    50% (crt_mid) da yarim yopish + breakeven, qolgani likvidlik (100%) da.
+    Har skanda kirishdan qayta yuriladi (sof funksiya, ikki marta hisob xavfsiz).
     """
     entry_dt = datetime.fromisoformat(tr["entry_time"])
     expiry_dt = datetime.fromisoformat(tr["expiry_time"])
@@ -333,14 +290,9 @@ def _walk_managed(tr: dict, df) -> tuple[str, float] | None:
     is_long = tr["direction"] == "bullish_sweep"
     sign = _sign(tr["direction"])
 
-    stdv_targets = _valid_stdv_targets(tr.get("stdv"), entry, sign)
-    partial_px = entry + sign * MGMT_PARTIAL_AT_R * r
-
-    runner_px = stdv_targets.get(MGMT_RUNNER_TARGET)
-    # Yakuniy maqsad qisman-yopish darajasidan yaqinroq bo'lsa (nodir, lekin
-    # kichik oyoqda uchraydi) - STDV'ga ishonmay 3R zaxirasiga qaytamiz.
-    if runner_px is None or sign * (runner_px - partial_px) <= 0:
-        runner_px = entry + sign * 3 * r
+    t50 = tr["targets"].get("50")            # yarim olish + breakeven nuqtasi
+    liq = tr["targets"]["liquidity"]         # qolgan yarmi
+    be_force_px = entry + sign * MGMT_BE_FORCE_R * r
 
     sl = tr["sl"]
     remaining = 1.0
@@ -348,18 +300,18 @@ def _walk_managed(tr: dict, df) -> tuple[str, float] | None:
     be_moved = False
     partial_done = False
     hits = {k: False for k in tr["targets"]}
-    stdv_hits = {k: False for k in _STDV_KEYS}
     mfe, mae = entry, entry
 
     after = df[df["time_ny"] > entry_dt]
-    entry_pos = df.index.get_indexer([after.index[0]])[0] - 1 if len(after) else -1
+    if len(after) == 0:
+        return None
+    entry_pos = df.index.get_indexer([after.index[0]])[0] - 1
     prev_close = entry
 
     for pos, (_, candle) in enumerate(after.iterrows()):
         if candle["time_ny"] >= expiry_dt:
             realized += remaining * sign * (prev_close - entry) / r
-            tr["mfe"], tr["mae"] = mfe, mae
-            tr["hits"], tr["stdv_hits"] = hits, stdv_hits
+            tr["mfe"], tr["mae"], tr["hits"] = mfe, mae, hits
             tr["partial_done"] = partial_done
             return "expired", realized
 
@@ -372,54 +324,40 @@ def _walk_managed(tr: dict, df) -> tuple[str, float] | None:
         # 1) KONSERVATIV: avval stop (B/E ko'chirilgan bo'lsa sl == entry)
         if (is_long and low <= sl) or (not is_long and hi >= sl):
             realized += remaining * sign * (sl - entry) / r
-            tr["mfe"], tr["mae"] = mfe, mae
-            tr["hits"], tr["stdv_hits"] = hits, stdv_hits
+            tr["mfe"], tr["mae"], tr["hits"] = mfe, mae, hits
             tr["partial_done"] = partial_done
-            if be_moved:
-                outcome = "be_after_partial" if partial_done else "breakeven"
-            else:
-                outcome = "stop"
+            outcome = ("be_after_partial" if partial_done else "breakeven") if be_moved else "stop"
             return outcome, realized
 
-        # 2) Qisman yopish
-        if not partial_done and ((is_long and hi >= partial_px) or
-                                 (not is_long and low <= partial_px)):
-            realized += MGMT_PARTIAL_FRAC * MGMT_PARTIAL_AT_R
+        # 2) 50% maqsad -> yarim yopish + breakeven ko'rib chiqish
+        if t50 is not None and not partial_done and \
+                ((is_long and hi >= t50) or (not is_long and low <= t50)):
+            realized += MGMT_PARTIAL_FRAC * sign * (t50 - entry) / r
             remaining -= MGMT_PARTIAL_FRAC
             partial_done = True
+            hits["50"] = True
+            # breakeven: orqaga tortadigan FVG/OB qolmagan bo'lsa
+            seg = df.iloc[max(0, entry_pos): entry_pos + pos + 2]
+            if not _pullback_obstacle(seg, entry, close, is_long):
+                sl, be_moved = entry, True
 
-        # 3) Maqsadlarni belgilash (hisobot uchun)
-        for name, price in tr["targets"].items():
-            if not hits[name] and ((is_long and hi >= price) or (not is_long and low <= price)):
-                hits[name] = True
-        for name, price in stdv_targets.items():
-            if name in stdv_hits and not stdv_hits[name] and \
-                    ((is_long and hi >= price) or (not is_long and low <= price)):
-                stdv_hits[name] = True
-
-        # 4) Qolgan ulushni yakuniy maqsadda yopish
-        if (is_long and hi >= runner_px) or (not is_long and low <= runner_px):
-            realized += remaining * sign * (runner_px - entry) / r
-            tr["mfe"], tr["mae"] = mfe, mae
-            tr["hits"], tr["stdv_hits"] = hits, stdv_hits
+        # 3) Likvidlik (100%) -> qolgan ulushni yopamiz
+        if (is_long and hi >= liq) or (not is_long and low <= liq):
+            hits["liquidity"] = True
+            realized += remaining * sign * (liq - entry) / r
+            tr["mfe"], tr["mae"], tr["hits"] = mfe, mae, hits
             tr["partial_done"] = partial_done
-            return "runner_target", realized
+            return "liquidity", realized
 
-        # 5) Breakeven qarori (stopdan KEYIN — bir shamda ikkalasi bo'lsa stop ustun)
-        if not be_moved:
-            mfe_r = sign * (mfe - entry) / r
-            if mfe_r >= MGMT_BE_TRIGGER_R:
-                if mfe_r >= MGMT_BE_FORCE_R:
-                    sl, be_moved = entry, True
-                else:
-                    seg = df.iloc[max(0, entry_pos): entry_pos + pos + 2]
-                    if not _pullback_obstacle(seg, entry, close, is_long):
-                        sl, be_moved = entry, True
+        # 4) Majburiy breakeven (2R) - to'siq bo'lsa ham
+        if not be_moved and ((is_long and hi >= be_force_px) or
+                             (not is_long and low <= be_force_px)):
+            sl, be_moved = entry, True
 
         prev_close = close
 
-    tr["mfe"], tr["mae"] = mfe, mae
-    tr["hits"], tr["stdv_hits"] = hits, stdv_hits
+    tr["mfe"], tr["mae"], tr["hits"] = mfe, mae, hits
+    tr["partial_done"] = partial_done
     return None
 
 
@@ -427,19 +365,18 @@ def _walk_managed(tr: dict, df) -> tuple[str, float] | None:
 # Natija yozish
 # ---------------------------------------------------------------------------
 def _ensure_header():
-    """CSV sxemasi o'zgargan bo'lsa, eskisini arxivlab yangisini boshlaydi."""
     os.makedirs(RESULTS_DIR, exist_ok=True)
     if not os.path.exists(RESULTS_CSV):
         return
     with open(RESULTS_CSV, encoding="utf-8") as f:
-        header = f.readline().strip()
+        header = f.readline().strip().lstrip("﻿")
     if header == ",".join(_CSV_COLUMNS):
         return
     n = 1
-    while os.path.exists(archive := os.path.join(RESULTS_DIR, f"results_v{n}.csv")):
+    while os.path.exists(archive := os.path.join(RESULTS_DIR, f"results_v3_old{n}.csv")):
         n += 1
     os.rename(RESULTS_CSV, archive)
-    logger.warning("results.csv sxemasi yangilandi; eskisi %s ga saqlandi",
+    logger.warning("results_v3.csv sxemasi yangilandi; eskisi %s ga saqlandi",
                    os.path.basename(archive))
 
 
@@ -454,10 +391,9 @@ def _write_row(row: dict):
 
 
 def _record_noentry(tr: dict, outcome: str):
-    """m5 varianti CISD shakllanmay muddati o'tgan holat (P&L yo'q)."""
     row = {c: "" for c in _CSV_COLUMNS}
     row.update({
-        "variant": tr["variant"],
+        "variant": tr["variant"], "source": tr.get("source", ""),
         "entry_time_ny": tr["entry_time"],
         "resolved_time_ny": datetime.now(NY_TZ).isoformat(timespec="seconds"),
         "symbol": tr["symbol"], "condition": tr["condition"],
@@ -478,23 +414,19 @@ def _record_result(tr: dict, outcome: str, net_r: float):
     risk = tr.get("risk_usd") or paper_account.risk_usd(variant)
     pnl, bal = paper_account.apply_pnl(variant, net_r, risk)
 
-    stdv_hits = tr.get("stdv_hits", {})
     stdv_px = (tr.get("stdv") or {}).get("levels", {})
+    tgt = tr.get("targets", {})
+    hits = tr.get("hits", {})
     row = {c: "" for c in _CSV_COLUMNS}
     row.update({
-        "variant": variant,
+        "variant": variant, "source": tr.get("source", ""),
         "entry_time_ny": tr["entry_time"],
         "resolved_time_ny": datetime.now(NY_TZ).isoformat(timespec="seconds"),
         "symbol": tr["symbol"], "condition": tr["condition"],
         "level_name": tr["level_name"], "direction": tr["direction"],
         "entry": tr["entry"], "sl": tr["sl"], "r_size": r, "outcome": outcome,
-        "hit_crt_50": tr["hits"].get("crt_50", ""),
-        "hit_1r": tr["hits"].get("1r", ""),
-        "hit_2r": tr["hits"].get("2r", ""),
-        "hit_3r": tr["hits"].get("3r", ""),
-        "hit_stdv_2": stdv_hits.get("stdv_2", ""),
-        "hit_stdv_2_5": stdv_hits.get("stdv_2_5", ""),
-        "hit_stdv_4": stdv_hits.get("stdv_4", ""),
+        "hit_50": hits.get("50", ""), "hit_liquidity": hits.get("liquidity", ""),
+        "t50_px": tgt.get("50", ""), "t100_px": tgt.get("liquidity", ""),
         "stdv_2_px": stdv_px.get("stdv_2", ""),
         "stdv_2_5_px": stdv_px.get("stdv_2_5", ""),
         "stdv_4_px": stdv_px.get("stdv_4", ""),
@@ -507,31 +439,33 @@ def _record_result(tr: dict, outcome: str, net_r: float):
 
 
 _OUTCOME_HEAD = {
-    "stop": "❌ STOP urildi",
-    "all_targets": "✅ Barcha maqsadlar olindi",
-    "runner_target": "✅ Yakuniy maqsad (STDV) olindi",
+    "liquidity": "✅ Likvidlik olindi (100%)",
+    "be_after_partial": "🟡 50% olindi, qolgani breakeven",
     "breakeven": "➖ Breakeven (zararsiz)",
-    "be_after_partial": "🟡 Yarmi olindi, qolgani breakeven",
+    "stop": "❌ STOP urildi",
     "expired": "⏰ Muddati tugadi (17:00 NY)",
 }
 
 _VARIANT_LABEL = {
-    "raw": "Xom (purge)",
-    "m5_cisd": "M5 CISD tasdiqli",
+    "m5_cisd": "M5 CISD (boshqaruvsiz)",
     "m5_managed": "M5 CISD + boshqaruv",
 }
 
 
 def _notify_result(tr: dict, outcome: str, mfe_r: float, net_r: float,
                    pnl: float, bal: float):
-    reached = [k.upper() for k, v in tr["hits"].items() if v]
-    reached += [k.replace("stdv_", "STDV-").replace("_", ".")
-                for k, v in tr.get("stdv_hits", {}).items() if v]
+    hits = tr.get("hits", {})
+    reached = []
+    if hits.get("50"):
+        reached.append("50%")
+    if hits.get("liquidity"):
+        reached.append("Likvidlik(100%)")
     head = _OUTCOME_HEAD.get(outcome, outcome)
     variant = _VARIANT_LABEL.get(tr["variant"], tr["variant"])
+    src = tr.get("source", "?").upper()
 
     lines = [
-        f"📊 <b>Forward-test yakuni</b> — {variant}",
+        f"📊 <b>Forward-test yakuni</b> — {variant} <i>({src})</i>",
         "",
         f"<b>{tr['symbol']}</b> | {tr['level_name']} | "
         f"{'LONG' if tr['direction'] == 'bullish_sweep' else 'SHORT'}",
@@ -542,6 +476,4 @@ def _notify_result(tr: dict, outcome: str, mfe_r: float, net_r: float,
         f"Kirish: {tr['entry']:.5f} | Stop: {tr['sl']:.5f}",
         f"Balans ({variant}): ${bal:,.2f}",
     ]
-    if tr["variant"] == "m5_managed" and tr.get("partial_done"):
-        lines.insert(5, f"Yarim pozitsiya {MGMT_PARTIAL_AT_R:g}R da yopilgan")
     send_telegram_message("\n".join(lines))

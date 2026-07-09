@@ -189,20 +189,18 @@ PAPER_RISK_PCT = 1.0           # har bir savdoga risk, balansning %
 # ---------------------------------------------------------------------------
 # Savdo boshqaruvi ("m5_managed" varianti uchun)
 #
-# Muammo: savdolarning ~53% 1R+ foydaga chiqib, keyin qaytib stopga tushyapti
-# (dushanba: 53% win, 78% stop). Sabab — boshqaruv yo'q edi: hech qayerda pul
-# olinmasdi, 3R yoki stopgacha ushlanardi.
+# MAQSAD = LIKVIDLIK (treyder aytgani, 2026-07-09):
+#   • Maqsad 50%  = diapazon o'rtasi (crt_mid) -> shu yerda yarim pozitsiya olib,
+#     breakeven'ga o'tamiz.
+#   • Maqsad 100% = diapazonning QARSHI cheti (qarshi likvidlik) -> qolgan yarmi.
+#   STDV -4 endi MAQSAD emas, faqat qo'shimcha ma'lumot sifatida ko'rsatiladi.
 #
-# Yechim (treyder aytgani, 2026-07-08):
-#   1) qisman yopish: birinchi maqsadda yarmini olish
-#   2) breakeven: narx yetarlicha yurgan bo'lsa VA uni orqaga tortadigan sabab
-#      (to'ldirilmagan FVG / OB) qolmagan bo'lsa — stopni kirishga ko'chirish
+# Muammo (o'lchangan): savdolarning ~53% foydaga chiqib, keyin qaytib stopga
+# tushardi. Yechim: 50%'da yarim olish + breakeven (agar orqaga tortadigan
+# to'ldirilmagan FVG/OB qolmagan bo'lsa).
 # ---------------------------------------------------------------------------
-MGMT_PARTIAL_AT_R = 1.0        # necha R'da yarim pozitsiya yopiladi
-MGMT_PARTIAL_FRAC = 0.5        # qancha ulush yopiladi (0.5 = yarmi)
-MGMT_BE_TRIGGER_R = 1.0        # shu R'dan keyin B/E ko'chirish KO'RIB CHIQILADI
-MGMT_BE_FORCE_R = 2.0          # shu R'dan keyin to'siq bo'lsa ham majburiy B/E
-MGMT_RUNNER_TARGET = "stdv_4"  # qolgan ulush qaysi STDV darajasida yopiladi
+MGMT_PARTIAL_FRAC = 0.5        # 50% maqsadda qancha ulush yopiladi (0.5 = yarmi)
+MGMT_BE_FORCE_R = 2.0          # narx shu R'ga yetsa, to'siq bo'lsa ham majburiy B/E
 
 # ---------------------------------------------------------------------------
 # Telegram sozlamalari (.env faylidan o'qiladi, kodga token yozilmaydi!)

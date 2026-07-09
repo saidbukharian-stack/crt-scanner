@@ -33,9 +33,12 @@ class SweepSignal:
     sweep_low: float
     close_price: float
     direction: str          # "bullish_sweep" (low supurildi) | "bearish_sweep" (high supurildi)
-    # CRT signallari uchun: diapazon o'rtasi (50% maqsad). Boshqalarda None.
+    # Diapazon o'rtasi (50% maqsad). Juftlanmagan darajalarda None.
     crt_mid: float | None = None
-    # STDV proyeksiyasi (manipulyatsiya oyog'idan -2/-2.5/-4). Topilmasa None.
+    # Qarshi likvidlik (diapazonning 100% cheti) - asosiy maqsad. None bo'lishi mumkin.
+    liquidity_target: float | None = None
+    # STDV proyeksiyasi (manipulyatsiya oyog'idan -2/-2.5/-4). QO'SHIMCHA ma'lumot,
+    # maqsad EMAS - treyder bilan kelishilgan (2026-07-09): maqsad = likvidlik.
     stdv: dict | None = None
 
 
@@ -104,6 +107,7 @@ def detect_sweep(df_recent: pd.DataFrame, level: Level, condition_name: str,
                     close_price=float(candle["close"]),
                     direction="bearish_sweep",
                     crt_mid=crt_mid,
+                    liquidity_target=level.paired_price,
                     stdv=compute_stdv(df_recent, candle["time_ny"], "bearish_sweep"),
                 ))
         else:  # level.kind == "low"
@@ -121,6 +125,7 @@ def detect_sweep(df_recent: pd.DataFrame, level: Level, condition_name: str,
                     close_price=float(candle["close"]),
                     direction="bullish_sweep",
                     crt_mid=crt_mid,
+                    liquidity_target=level.paired_price,
                     stdv=compute_stdv(df_recent, candle["time_ny"], "bullish_sweep"),
                 ))
 
@@ -201,21 +206,21 @@ def format_trade_plan(sig: SweepSignal) -> str:
     r = abs(entry - stop)
     if r <= 0:
         return ""
-    t1 = entry + sign * r
-    t2 = entry + sign * 2 * r
-    t3 = entry + sign * 3 * r
     lines = [
         f"📍 <b>Reja</b> ({yon}):",
-        f"• Kirish (xom): {entry:.5f} — purge sham close'i",
-        f"• Kirish (tasdiqli): M5 CISD shakllangach — aniqroq, stop kichikroq",
+        f"• Kirish: M5 CISD tasdig'idan keyin (xom purge'da kirilmaydi)",
         f"• Stop: {stop:.5f} — purge wick uchi (R={r:.5f})",
-        f"• Maqsad: 1R={t1:.5f} | 2R={t2:.5f} | 3R={t3:.5f}",
     ]
+    # Asosiy maqsad = LIKVIDLIK: 50% (o'rta) va qarshi tomon (100%)
     if sig.crt_mid is not None:
-        lines.append(f"• CRT 50%: {sig.crt_mid:.5f}")
+        d50 = abs(sig.crt_mid - entry) / r
+        lines.append(f"• Maqsad 50%: {sig.crt_mid:.5f} ({d50:.1f}R) — yarim olib, breakeven")
+    if sig.liquidity_target is not None:
+        d100 = abs(sig.liquidity_target - entry) / r
+        lines.append(f"• Maqsad likvidlik (100%): {sig.liquidity_target:.5f} ({d100:.1f}R) — qolgan yarmi")
     txt = stdv_text(sig.stdv)
     if txt:
-        lines.append(txt)
+        lines.append(txt + "  <i>(qo'shimcha ma'lumot)</i>")
     lines.append("<i>Mexanik reja, moliyaviy maslahat emas — qaror o'zingizda.</i>")
     return "\n".join(lines)
 
