@@ -212,6 +212,15 @@ OTE_REQUIRE_WINDOW = True      # kirish 08:30-11:00 NY oynasida bo'lishi shart (
 OTE_REQUIRE_ROUND = False      # institutsional yaxlit daraja filtri (hozircha yumshoq)
 
 # ---------------------------------------------------------------------------
+# QT (Quarterly Theory) filtri - Daye. Signal faqat "ma'qul" fazada (kunlik
+# Manipulation=London yoki Distribution=NY AM) ochiladi. Accumulation (Osiyo,
+# tor diapazon) va Continuation (NY PM, chalkash) chetlab o'tiladi.
+# Killzone'lar allaqachon shu fazalarга to'g'ri keladi - bu aniq QT qatlami
+# (killzone o'zgarsa ham ishlaydi) + Telegram/logda faza ko'rsatiladi.
+# ---------------------------------------------------------------------------
+QT_FILTER_ENABLED = True
+
+# ---------------------------------------------------------------------------
 # Telegram sozlamalari (.env faylidan o'qiladi, kodga token yozilmaydi!)
 # ---------------------------------------------------------------------------
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")

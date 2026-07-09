@@ -28,6 +28,7 @@ from config import (
     MT5_TIMEFRAME_HTF,
     SIGNAL_CONDITIONS,
     NY_TZ,
+    QT_FILTER_ENABLED,
 )
 
 if DATA_SOURCE == "oanda":
@@ -96,6 +97,17 @@ def scan_symbol(symbol: str, now_ny: datetime) -> list:
     if len(filtered) < len(signals):
         logger.info("%s: P/D filtri %d dan %d signalни o'tkazdi",
                     symbol, len(signals), len(filtered))
+
+    # QT FILTRI: faqat ma'qul fazada (Manipulation/Distribution) signal
+    if QT_FILTER_ENABLED:
+        import pandas as pd
+        from qt import qt_favored
+        kept = [s for s in filtered
+                if qt_favored(pd.Timestamp(s.sweep_candle_time))]
+        if len(kept) < len(filtered):
+            logger.info("%s: QT filtri %d dan %d signalни o'tkazdi (faqat Manip/Distrib)",
+                        symbol, len(filtered), len(kept))
+        filtered = kept
     return filtered
 
 

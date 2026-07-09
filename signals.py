@@ -221,6 +221,13 @@ def format_trade_plan(sig: SweepSignal) -> str:
     txt = stdv_text(sig.stdv)
     if txt:
         lines.append(txt + "  <i>(qo'shimcha ma'lumot)</i>")
+    try:
+        from qt import qt_phase
+        qi = qt_phase(pd.Timestamp(sig.sweep_candle_time))
+        lines.append(f"• QT: Q{qi['quarter']} {qi['session']} — {qi['phase']} "
+                     f"(90daq Q{qi['sub_quarter']})")
+    except Exception:
+        pass
     lines.append("<i>Mexanik reja, moliyaviy maslahat emas — qaror o'zingizda.</i>")
     return "\n".join(lines)
 
