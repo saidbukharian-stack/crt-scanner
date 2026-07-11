@@ -123,6 +123,56 @@ def order_flow(df_h4: pd.DataFrame) -> str:
 
 
 # ---------------------------------------------------------------------------
+# MMxM — Market Maker Buy/Sell Model konteksti (ICT)
+# To'liq MMxM narrativ shablon (konsolidatsiya→markdown→SMR→markup). Bu YERDA
+# faqat aniqlanadigan YADRO: joriy faza (markdown/markup/reversal) belgilanadi -
+# LLM tahlili uchun kontekst, alohida savdo varianti EMAS (soxta aniqlikdan qochish).
+# ---------------------------------------------------------------------------
+def market_maker_context(df: pd.DataFrame, lookback: int = 40) -> str:
+    """
+    So'nggi struktura asosida Market Maker fazasini taxminlaydi:
+      - markdown (past oyoq), markup (yuqori oyoq)
+      - smart money reversal (SMR): ekstremumdan keyin qarshi qatlam boshlangan
+    Matn qaytaradi (LLM snapshot uchun).
+    """
+    recent = df.tail(lookback)
+    if len(recent) < 10:
+        return "aniq emas (ma'lumot kam)"
+    highs, lows = _swings(recent)
+    if len(highs) < 2 or len(lows) < 2:
+        return "konsolidatsiya (swing kam) — akkumulyatsiya bo'lishi mumkin"
+
+    hh = highs[-1][1] > highs[-2][1]
+    hl = lows[-1][1] > lows[-2][1]
+    lh = highs[-1][1] < highs[-2][1]
+    ll = lows[-1][1] < lows[-2][1]
+    last = float(recent["close"].iloc[-1])
+    hi_all = float(recent["high"].max())
+    lo_all = float(recent["low"].min())
+    rng = hi_all - lo_all
+    if rng <= 0:
+        return "aniq emas"
+    pos = (last - lo_all) / rng   # 0=tub, 1=cho'qqi
+
+    if hh and hl:
+        phase = "MARKUP (yuqoriga distribution)"
+        note = "SMR tubдан bo'lgan; premium (cho'qqi) yaqinida reversal ehtimoli oshadi" if pos > 0.7 else "trend davom etishi mumkin"
+    elif lh and ll:
+        phase = "MARKDOWN (pastga distribution)"
+        note = "SMR cho'qqidan bo'lgan; discount (tub) yaqinida reversal ehtimoli oshadi" if pos < 0.3 else "trend davom etishi mumkin"
+    elif pos < 0.25:
+        phase = "TUBда SMR (Smart Money Reversal) — bullish burilish ehtimoli"
+        note = "MMBM (Market Maker Buy Model) boshlanishi bo'lishi mumkin"
+    elif pos > 0.75:
+        phase = "CHO'QQIда SMR — bearish burilish ehtimoli"
+        note = "MMSM (Market Maker Sell Model) boshlanishi bo'lishi mumkin"
+    else:
+        phase = "o'rta diapazon — akkumulyatsiya/qayta-akkumulyatsiya"
+        note = "aniq faza yo'q, chetда kutish afzal"
+    return f"{phase}. {note} (narx diapazonда {pos*100:.0f}%)"
+
+
+# ---------------------------------------------------------------------------
 # 2. DOL (Draw on Liquidity) - narx qaysi likvidlikka tortiladi
 #    DOL PDF: close/wick qoidalari + order flow
 # ---------------------------------------------------------------------------

@@ -245,6 +245,7 @@ def scan_all_conditions(df_recent: pd.DataFrame, levels: list[Level],
         "pdh_pdl_sweep": "PD",              # PDH / PDL
         "crt_range_sweep": "CRT_",
         "opening_gap_sweep": ("NWOG", "NDOG"),  # ochilish bo'shliqlari
+        "ipda_sweep": "IPDA",                   # IPDA 20/40/60 kun ekstremumlari
     }
 
     for condition_name, is_enabled in enabled_conditions.items():

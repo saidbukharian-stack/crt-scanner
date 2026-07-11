@@ -159,6 +159,7 @@ SIGNAL_CONDITIONS = {
     "pdh_pdl_sweep": True,       # Oldingi kun high/low sweep
     "crt_range_sweep": True,     # CRT (1AM/5AM/9AM) range sweep
     "opening_gap_sweep": True,   # NWOG/NDOG ochilish bo'shlig'i sweep (ICT)
+    "ipda_sweep": True,          # IPDA 20/40/60 kunlik ekstremum sweep (ICT)
 }
 
 # ---------------------------------------------------------------------------

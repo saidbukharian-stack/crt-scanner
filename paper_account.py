@@ -24,8 +24,9 @@ logger = logging.getLogger(__name__)
 _ACCOUNT_PATH = os.path.join(os.path.dirname(DB_PATH), "paper_account.json")
 
 # "raw" olib tashlandi (2026-07-09): xom purge barcha o'lchovda minusda edi.
-# m5_ote qo'shildi (2026-07-09): OTE 62-79% retracement kirishi.
-VARIANTS = ("m5_cisd", "m5_managed", "m5_ote")
+# m5_ote (2026-07-09) OTE 62-79% retracement; m5_sb Silver Bullet FVG,
+# m1_ote M1 micro-kirish (2026-07-11).
+VARIANTS = ("m5_cisd", "m5_managed", "m5_ote", "m5_sb", "m1_ote")
 
 
 def _load() -> dict:
@@ -70,7 +71,8 @@ def summary() -> str:
     """Telegram uchun qisqa hisobot."""
     data = _load()
     labels = {"m5_cisd": "M5 CISD (boshqaruvsiz)", "m5_managed": "M5 + boshqaruv",
-              "m5_ote": "M5 OTE (62-79% kirish)"}
+              "m5_ote": "M5 OTE (62-79% kirish)", "m5_sb": "M5 Silver Bullet",
+              "m1_ote": "M1 OTE (micro)"}
     lines = [f"💰 <b>Xayoliy hisob</b> (boshlang'ich ${PAPER_START_BALANCE:,.0f}, "
              f"risk {PAPER_RISK_PCT}%)"]
     for v in VARIANTS:

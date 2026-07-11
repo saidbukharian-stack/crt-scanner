@@ -190,6 +190,11 @@ def all_levels_for_symbol(df_intraday: pd.DataFrame, df_h4: pd.DataFrame,
     for lv in opening_gap_levels(df_d1):
         lv.windows = kz
         levels.append(lv)
+    # IPDA 20/40/60 kunlik ekstremumlar - ahamiyatli likvidlik (killzone'да sweep)
+    from ipda import ipda_levels  # lazy: aylanma importдан qochish
+    for lv in ipda_levels(df_d1):
+        lv.windows = kz
+        levels.append(lv)
     for model_name in CRT_MODELS:
         levels += crt_levels_for_model(df_h4, model_name, for_date)
     return levels

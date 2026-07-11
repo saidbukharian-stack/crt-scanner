@@ -83,7 +83,7 @@ def scan_symbol(symbol: str, now_ny: datetime) -> list:
     # soat oldin) to'liq qamrab olinishi uchun (200 sham yetarli emas edi)
     df_m5 = connector.get_candles(symbol, MT5_TIMEFRAME_ENTRY, count=400)
     df_h4 = connector.get_candles(symbol, MT5_TIMEFRAME_HTF, count=60)
-    df_d1 = connector.get_candles(symbol, "D1", count=10)
+    df_d1 = connector.get_candles(symbol, "D1", count=70)  # IPDA 60 kun uchun
 
     if df_m5.empty or df_h4.empty or df_d1.empty:
         logger.warning("Ma'lumot yetarli emas: %s", symbol)

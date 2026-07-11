@@ -20,7 +20,8 @@ from levels import all_levels_for_symbol, _parse_hhmm
 from signals import scan_all_conditions
 from analysis import (
     order_flow, draw_on_liquidity, find_fvgs, find_order_block, smt,
-    irl_erl_map, equal_highs_lows, detect_double_purge,
+    irl_erl_map, equal_highs_lows, detect_double_purge, market_maker_context,
+    midnight_open,
 )
 
 if DATA_SOURCE == "oanda":
@@ -71,7 +72,7 @@ def build_snapshot(symbol: str) -> str | None:
 
     df_m5 = connector.get_candles(symbol, MT5_TIMEFRAME_ENTRY, count=400)
     df_h4 = connector.get_candles(symbol, MT5_TIMEFRAME_HTF, count=60)
-    df_d1 = connector.get_candles(symbol, "D1", count=10)
+    df_d1 = connector.get_candles(symbol, "D1", count=70)  # IPDA 60 kun uchun
     if df_m5.empty or df_h4.empty or df_d1.empty:
         return None
 
@@ -94,6 +95,13 @@ def build_snapshot(symbol: str) -> str | None:
     # Order flow (H4 struktura)
     of = order_flow(df_h4)
     lines.append(f"Order flow (H4): {of}")
+
+    # MMxM faza + Midnight Open bias (ICT konteksti)
+    lines.append(f"Market Maker faza (H4): {market_maker_context(df_h4)}")
+    mo = midnight_open(df_m5, now_ny)
+    if mo is not None:
+        rel = "ustида (bullish bias)" if price >= mo else "ostида (bearish bias)"
+        lines.append(f"Midnight Open (00:00 NY): {mo:.5f} — narx {rel}")
 
     # DOL (draw on liquidity)
     pdh = next((lv.price for lv in levels if lv.name == "PDH"), None)

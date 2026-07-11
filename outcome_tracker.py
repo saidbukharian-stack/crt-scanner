@@ -40,6 +40,7 @@ from analysis import _unfilled_fvgs
 from config import (DATA_SOURCE, DB_PATH, MGMT_BE_FORCE_R, MGMT_PARTIAL_FRAC,
                     NY_TZ, OTE_REQUIRE_ROUND, OTE_REQUIRE_WINDOW)
 from ote import in_ote_window, near_institutional_level, ote_zone
+from silver_bullet import in_sb_window, sb_fvg_zone
 from signals import SweepSignal, detect_cisd
 from telegram_notifier import send_telegram_message
 
@@ -132,17 +133,19 @@ def register_trade(sig: SweepSignal):
         "expiry_time": expiry,
     }
     trades = _load_trades()
-    # Uch variant ham M5 CISD kutadi (pending). Xom purge'da hech narsa ochilmaydi.
-    #   m5_cisd    - CISD close'da darrov, boshqaruvsiz
-    #   m5_managed - CISD close'da, boshqaruv bilan
-    #   m5_ote     - CISD'dan keyin OTE retracement (62-79%) kutib, boshqaruv bilan
-    for variant in ("m5_cisd", "m5_managed", "m5_ote"):
-        m5 = dict(common)
-        m5.update({"variant": variant, "status": "pending",
+    # Besh variant ham CISD kutadi (pending). Xom purge'da hech narsa ochilmaydi.
+    #   m5_cisd    - M5 CISD close'da darrov, boshqaruvsiz
+    #   m5_managed - M5 CISD close'da, boshqaruv bilan
+    #   m5_ote     - M5 CISD'dan keyin OTE retracement (62-79%) kutib, boshqaruv
+    #   m5_sb      - M5 CISD'dan keyin Silver Bullet FVG'ga (SB oynasida) kirish
+    #   m1_ote     - M1 (micro) CISD + OTE retracement, aniqroq stop, boshqaruv
+    for variant in ("m5_cisd", "m5_managed", "m5_ote", "m5_sb", "m1_ote"):
+        tr = dict(common)
+        tr.update({"variant": variant, "status": "pending",
                    "risk_usd": paper_account.risk_usd(variant)})
-        trades.append(m5)
+        trades.append(tr)
     _save_trades(trades)
-    logger.info("Xayoliy savdo(lar) kutilmoqda (M5 CISD): %s %s %s (m5_cisd + m5_managed + m5_ote)",
+    logger.info("Xayoliy savdo(lar) kutilmoqda: %s %s %s (5 variant)",
                 sig.symbol, sig.level_name, sig.direction)
 
 
@@ -160,31 +163,33 @@ def update_trades(connector):
 
     still_open: list[dict] = []
     for symbol, trs in by_symbol.items():
-        df = connector.get_candles(symbol, "M5", count=400)
-        if df.empty:
-            still_open.extend(trs)  # ma'lumot yo'q - keyingi safar
-            continue
+        df5 = connector.get_candles(symbol, "M5", count=400)
+        # M1 faqat m1_* variant bo'lsa yuklanadi (micro-kirish uchun ~13h)
+        need_m1 = any(t["variant"].startswith("m1") for t in trs)
+        df1 = connector.get_candles(symbol, "M1", count=800) if need_m1 else None
         for tr in trs:
+            df = df1 if tr["variant"].startswith("m1") else df5
+            if df is None or df.empty:
+                still_open.append(tr)  # ma'lumot yo'q - keyingi safar
+                continue
             if tr["status"] == "pending":
                 if _try_activate_m5(tr, df) is None and tr["status"] not in ("active", "ote_wait"):
-                    continue          # no_m5_entry / m5_bad_r - yozildi, yopildi
+                    continue          # no_entry / bad_r - yozildi, yopildi
                 still_open.append(tr)  # pending / ote_wait / yangi active
             elif tr["status"] == "ote_wait":
-                # CISD bo'ldi, endi 62-79% retracement kutamiz
+                # CISD bo'ldi, endi zonaga (OTE retracement yoki SB FVG) qaytishни kutamiz
                 if _advance_ote(tr, df) is None and tr["status"] != "active":
                     continue          # no_ote_entry - yozildi, yopildi
                 still_open.append(tr)
             else:  # active
-                # Migratsiya himoyasi: eski sxemadagi (v2 va oldingi) ochiq
-                # savdolar "liquidity" maqsadiga ega emas yoki olib tashlangan
-                # "raw" varianti - ularni jim tashlab yuboramiz (crash bo'lmasin).
+                # Migratsiya himoyasi: eski sxemadagi ochiq savdolar / olib tashlangan
+                # "raw" varianti - jim tashlab yuboramiz (crash bo'lmasin).
                 if tr["variant"] == "raw" or "liquidity" not in tr.get("targets", {}):
                     logger.info("Eski sxemadagi ochiq savdo tashlandi: %s %s",
                                 tr.get("symbol"), tr.get("variant"))
                     continue
-                # m5_managed va m5_ote - boshqaruvli; m5_cisd - boshqaruvsiz
-                managed = tr["variant"] in ("m5_managed", "m5_ote")
-                walker = _walk_managed if managed else _walk_cisd
+                # m5_cisd'dan boshqasi boshqaruvli
+                walker = _walk_cisd if tr["variant"] == "m5_cisd" else _walk_managed
                 resolved = walker(tr, df)
                 if resolved is None:
                     still_open.append(tr)
@@ -205,20 +210,31 @@ def _try_activate_m5(tr: dict, df) -> dict | None:
 
     cisd = detect_cisd(df, purge_dt, tr["direction"])
     if cisd is not None:
-        # m5_ote: darrov kirmaymiz - OTE zonasini hisoblab, retracement kutamiz
-        if tr["variant"] == "m5_ote":
-            oz = ote_zone(df, purge_dt, tr["direction"], cisd)
-            if oz is None:
+        # Ikki-bosqichli variantlar: darrov kirmaymiz - zona (OTE retracement yoki
+        # Silver Bullet FVG) hisoblab, narx qaytishini kutamiz.
+        #   m5_ote, m1_ote -> OTE 62-79% zonasi, oyna = 08:30-11:00
+        #   m5_sb          -> Silver Bullet FVG zonasi, oyna = SB soatlari
+        if tr["variant"] in ("m5_ote", "m1_ote", "m5_sb"):
+            if tr["variant"] == "m5_sb":
+                zone = sb_fvg_zone(df, purge_dt, tr["direction"], cisd)
+                window_kind = "sb"
+                zlabel = "SB FVG"
+            else:
+                zone = ote_zone(df, purge_dt, tr["direction"], cisd)
+                window_kind = "ote"
+                zlabel = "OTE 62%"
+            if zone is None:
                 _record_noentry(tr, "no_ote_zone")
                 return None
             tr.update({
                 "status": "ote_wait",
-                "ote": oz,
+                "ote": zone,
+                "window_kind": window_kind,
                 "cisd_time": cisd["entry_time"],
             })
-            logger.info("OTE zonasi tayyor (%s): %s %s kirish~%.5f (62%%), SL %.5f",
-                        tr["variant"], tr["symbol"], tr["level_name"],
-                        oz["entry"], oz["stop"])
+            logger.info("Zona tayyor (%s, %s): %s %s kirish~%.5f SL %.5f",
+                        tr["variant"], zlabel, tr["symbol"], tr["level_name"],
+                        zone["entry"], zone["stop"])
             return None
 
         entry, stop = cisd["entry"], cisd["stop"]
@@ -255,6 +271,9 @@ def _advance_ote(tr: dict, df) -> dict | None:
     expiry_dt = datetime.fromisoformat(tr["expiry_time"])
     cisd_dt = datetime.fromisoformat(tr["cisd_time"])
     is_long = tr["direction"] == "bullish_sweep"
+    # Oyna turi: SB (Silver Bullet soatlari) yoki OTE (08:30-11:00)
+    is_sb = tr.get("window_kind") == "sb"
+    window_ok = in_sb_window if is_sb else in_ote_window
 
     after = df[df["time_ny"] > cisd_dt]
     for _, candle in after.iterrows():
@@ -266,8 +285,9 @@ def _advance_ote(tr: dict, df) -> dict | None:
         # Retracement zonaga tegdimi?
         touched = (is_long and low <= oz["zone_hi"]) or (not is_long and hi >= oz["zone_lo"])
         if touched:
-            if OTE_REQUIRE_WINDOW and not in_ote_window(candle["time_ny"]):
-                continue  # zonaga tegdi, lekin OTE oynasidan tashqarida - kutamiz
+            # SB har doim oyna talab qiladi; OTE config'ga qarab
+            if (is_sb or OTE_REQUIRE_WINDOW) and not window_ok(candle["time_ny"]):
+                continue  # zonaga tegdi, lekin oynadan tashqarida - kutamiz
             if OTE_REQUIRE_ROUND and not near_institutional_level(oz["entry"]):
                 _record_noentry(tr, "no_ote_round")
                 return None
@@ -524,6 +544,8 @@ _VARIANT_LABEL = {
     "m5_cisd": "M5 CISD (boshqaruvsiz)",
     "m5_managed": "M5 CISD + boshqaruv",
     "m5_ote": "M5 OTE (62-79% retracement)",
+    "m5_sb": "M5 Silver Bullet (FVG oyna)",
+    "m1_ote": "M1 OTE (micro-kirish)",
 }
 
 
