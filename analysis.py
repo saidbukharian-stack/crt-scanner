@@ -8,12 +8,76 @@ Barcha funksiyalar sof mexanik — bashorat yo'q, faqat joriy holatni aniqlash.
 """
 
 import logging
+from datetime import datetime, time as dtime
 
 import pandas as pd
 
 from config import SMT_PAIRS
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Midnight Open — 00:00 NY kunlik ochilish narxi (ICT kunlik bias mezoni)
+# ---------------------------------------------------------------------------
+def midnight_open(df_m5: pd.DataFrame, for_date) -> float | None:
+    """
+    Joriy kunning 00:00 NY shamining OPEN narxi. ICT: narx shundan yuqorida =
+    bullish kun bias (premium yetkazilyapti), pastda = bearish.
+    Topilmasa None.
+    """
+    if df_m5.empty:
+        return None
+    day = for_date.date()
+    naive = df_m5["time_ny"].dt.tz_localize(None)
+    target = datetime.combine(day, dtime(0, 0))
+    match = df_m5[naive == target]
+    if not match.empty:
+        return float(match.iloc[0]["open"])
+    # aniq 00:00 yo'q bo'lsa - shu kunning birinchi shami
+    today = df_m5[naive >= target]
+    if not today.empty:
+        return float(today.iloc[0]["open"])
+    return None
+
+
+def midnight_bias_ok(price: float, direction: str, mo: float | None) -> bool:
+    """
+    Signal yo'nalishi Midnight Open bias'iga mosmi?
+    bullish_sweep (long) -> narx MO ustida yopilgan; bearish_sweep -> ostida.
+    mo None bo'lsa filtrlamaymiz (True).
+    """
+    if mo is None:
+        return True
+    if direction == "bullish_sweep":
+        return price >= mo
+    return price <= mo
+
+
+# ---------------------------------------------------------------------------
+# High/Low Resistance Liquidity — maqsadga yo'l toza (past qarshilik)mi?
+# ICT: kirish bilan likvidlik maqsadi orasida QARSHI yo'nalishdagi to'ldirilmagan
+# FVG (= qarshi PD array) bo'lsa -> YUQORI qarshilik -> past ehtimol.
+# Toza yo'l (past qarshilik) = yuqori ehtimolli signal.
+# ---------------------------------------------------------------------------
+def low_resistance_to_target(df: pd.DataFrame, price_from: float,
+                             price_to: float, direction: str) -> bool:
+    """
+    price_from (kirish) dan price_to (likvidlik) gacha yo'lda qarshi FVG bormi?
+    bullish (yuqoriga) -> qarshi = bearish FVG; bearish -> bullish FVG.
+    Qaytaradi: True (toza/past qarshilik) yoki False (yuqori qarshilik).
+    """
+    if price_to is None:
+        return True  # maqsad noma'lum - filtrlamaymiz
+    opposing = "bearish" if direction == "bullish_sweep" else "bullish"
+    lo_b, hi_b = min(price_from, price_to), max(price_from, price_to)
+    for kind, g_lo, g_hi in _unfilled_fvgs(df):
+        if kind != opposing:
+            continue
+        mid = (g_lo + g_hi) / 2
+        if lo_b <= mid <= hi_b:
+            return False  # yo'lda qarshi FVG - yuqori qarshilik
+    return True
 
 
 # ---------------------------------------------------------------------------

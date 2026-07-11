@@ -242,8 +242,9 @@ def scan_all_conditions(df_recent: pd.DataFrame, levels: list[Level],
 
     condition_prefix_map = {
         "asia_hl_sweep": "Asia_",
-        "pdh_pdl_sweep": "PD",       # PDH / PDL
+        "pdh_pdl_sweep": "PD",              # PDH / PDL
         "crt_range_sweep": "CRT_",
+        "opening_gap_sweep": ("NWOG", "NDOG"),  # ochilish bo'shliqlari
     }
 
     for condition_name, is_enabled in enabled_conditions.items():

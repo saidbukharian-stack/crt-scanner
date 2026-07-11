@@ -158,6 +158,7 @@ SIGNAL_CONDITIONS = {
     "asia_hl_sweep": True,       # Asia session high/low sweep
     "pdh_pdl_sweep": True,       # Oldingi kun high/low sweep
     "crt_range_sweep": True,     # CRT (1AM/5AM/9AM) range sweep
+    "opening_gap_sweep": True,   # NWOG/NDOG ochilish bo'shlig'i sweep (ICT)
 }
 
 # ---------------------------------------------------------------------------
@@ -219,6 +220,18 @@ OTE_REQUIRE_ROUND = False      # institutsional yaxlit daraja filtri (hozircha y
 # (killzone o'zgarsa ham ishlaydi) + Telegram/logda faza ko'rsatiladi.
 # ---------------------------------------------------------------------------
 QT_FILTER_ENABLED = True
+
+# ---------------------------------------------------------------------------
+# Midnight Open bias filtri (ICT) - signal yo'nalishi 00:00 NY ochilish
+# narxiga mos bo'lsin: bullish faqat MO ustida, bearish faqat ostida.
+# ---------------------------------------------------------------------------
+MIDNIGHT_BIAS_ENABLED = True
+
+# ---------------------------------------------------------------------------
+# High-Resistance-Liquidity filtri (ICT) - kirish bilan likvidlik maqsadi
+# orasida qarshi FVG (yuqori qarshilik) bo'lsa signal o'tkazilmaydi.
+# ---------------------------------------------------------------------------
+HRL_FILTER_ENABLED = True
 
 # ---------------------------------------------------------------------------
 # Telegram sozlamalari (.env faylidan o'qiladi, kodga token yozilmaydi!)

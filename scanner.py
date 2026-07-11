@@ -29,6 +29,8 @@ from config import (
     SIGNAL_CONDITIONS,
     NY_TZ,
     QT_FILTER_ENABLED,
+    MIDNIGHT_BIAS_ENABLED,
+    HRL_FILTER_ENABLED,
 )
 
 if DATA_SOURCE == "oanda":
@@ -106,6 +108,28 @@ def scan_symbol(symbol: str, now_ny: datetime) -> list:
                 if qt_favored(pd.Timestamp(s.sweep_candle_time))]
         if len(kept) < len(filtered):
             logger.info("%s: QT filtri %d dan %d signalни o'tkazdi (faqat Manip/Distrib)",
+                        symbol, len(filtered), len(kept))
+        filtered = kept
+
+    # MIDNIGHT OPEN bias filtri: signal yo'nalishi 00:00 NY ochilishiga mos
+    if MIDNIGHT_BIAS_ENABLED:
+        from analysis import midnight_open, midnight_bias_ok
+        mo = midnight_open(df_m5, now_ny)
+        kept = [s for s in filtered
+                if midnight_bias_ok(s.close_price, s.direction, mo)]
+        if len(kept) < len(filtered):
+            logger.info("%s: Midnight bias %d dan %d signalни o'tkazdi (MO=%.5f)",
+                        symbol, len(filtered), len(kept), mo if mo else 0)
+        filtered = kept
+
+    # HIGH-RESISTANCE-LIQUIDITY filtri: maqsadga yo'l toza (qarshi FVG yo'q)
+    if HRL_FILTER_ENABLED:
+        from analysis import low_resistance_to_target
+        kept = [s for s in filtered
+                if low_resistance_to_target(df_m5, s.close_price,
+                                            s.liquidity_target, s.direction)]
+        if len(kept) < len(filtered):
+            logger.info("%s: HRL filtri %d dan %d signalни o'tkazdi (toza yo'l)",
                         symbol, len(filtered), len(kept))
         filtered = kept
     return filtered

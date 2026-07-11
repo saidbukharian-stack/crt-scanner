@@ -121,6 +121,34 @@ def crt_levels_for_model(df_h4: pd.DataFrame, model_name: str,
     return levels
 
 
+def opening_gap_levels(df_d1: pd.DataFrame) -> list[Level]:
+    """
+    NWOG / NDOG — New Week/Day Opening Gap (ICT).
+    Oldingi kun CLOSE'i bilan joriy kun OPEN'i orasidagi bo'shliq. Bu bo'shliq
+    kuchli magnit/support-resistance bo'lib xizmat qiladi va o'rtasi (50% =
+    "consequent encroachment") muhim daraja.
+
+    - Joriy kun DUSHANBA bo'lsa: dam olish bo'shlig'i -> NWOG (New Week Opening Gap)
+    - Aks holda: NDOG (New Day Opening Gap)
+
+    High/Low juftlanadi (qarshi cheti = likvidlik maqsadi, o'rtasi = CE 50%).
+    """
+    if len(df_d1) < 2:
+        return []
+    prev_close = float(df_d1.iloc[-2]["close"])
+    curr = df_d1.iloc[-1]
+    curr_open = float(curr["open"])
+    if prev_close == curr_open:
+        return []  # bo'shliq yo'q
+    hi, lo = max(prev_close, curr_open), min(prev_close, curr_open)
+    name = "NWOG" if curr["time_ny"].weekday() == 0 else "NDOG"
+    date_str = curr["time_ny"].strftime("%Y-%m-%d")
+    return [
+        Level(f"{name}_High", hi, "high", date_str, None, lo),
+        Level(f"{name}_Low", lo, "low", date_str, None, hi),
+    ]
+
+
 def killzone_windows(for_date: datetime) -> list[tuple[datetime, datetime]]:
     """config.KILLZONES_NY dan shu kun uchun naive NY oynalar ro'yxati."""
     day = for_date.date()
@@ -158,6 +186,10 @@ def all_levels_for_symbol(df_intraday: pd.DataFrame, df_h4: pd.DataFrame,
         lv.windows = kz
         levels.append(lv)
     levels += _pair_high_low(session_high_low(df_intraday, "london", for_date))
+    # NWOG/NDOG ochilish bo'shliqlari - killzone oynalarida sweep signali beradi
+    for lv in opening_gap_levels(df_d1):
+        lv.windows = kz
+        levels.append(lv)
     for model_name in CRT_MODELS:
         levels += crt_levels_for_model(df_h4, model_name, for_date)
     return levels
