@@ -226,7 +226,10 @@ def run_once():
             # SPAM FIX: bir daraja + yo'nalish KUNIGA BIR MARTA signal beradi
             # (avval har M5 sham uchun signal edi - bir daraja 12 martagacha).
             day = str(sig.sweep_candle_time)[:10]
-            key = (sig.symbol, sig.condition, sig.level_name, sig.direction, day)
+            # Manba kalitda (Vazifa 5): yahoo'da ko'rilgan signal mt5 signalini
+            # bosib qo'ymasin (darajalar manbaga qarab ozgina farq qiladi)
+            key = (DATA_SOURCE, sig.symbol, sig.condition,
+                   sig.level_name, sig.direction, day)
             if key in _already_notified:
                 continue
             _already_notified.add(key)

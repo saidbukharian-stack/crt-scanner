@@ -159,11 +159,21 @@ def update_trades(connector):
     if not trades:
         return
 
+    # MANBA IZOLYATSIYASI (Vazifa 5): faqat O'Z manbamizda ochilgan savdolarni
+    # yangilaymiz. Boshqa manba (masalan yahoo'da ochilgan, hozir mt5) savdosi
+    # o'z holicha saqlanadi - o'z manbasi qaytganda davom etadi. Aks holda
+    # yahoo darajasida ochilgan savdo mt5 narxi bilan yurilib buzilardi.
+    still_open: list[dict] = [t for t in trades
+                              if t.get("source", DATA_SOURCE) != DATA_SOURCE]
+    if still_open:
+        logger.info("Boshqa manba savdolari o'tkazib yuborildi: %d (bizniki=%s)",
+                    len(still_open), DATA_SOURCE)
+    ours = [t for t in trades if t.get("source", DATA_SOURCE) == DATA_SOURCE]
+
     by_symbol: dict[str, list[dict]] = {}
-    for tr in trades:
+    for tr in ours:
         by_symbol.setdefault(tr["symbol"], []).append(tr)
 
-    still_open: list[dict] = []
     for symbol, trs in by_symbol.items():
         df5 = connector.get_candles(symbol, "M5", count=400)
         # M1 faqat m1_* variant bo'lsa yuklanadi (micro-kirish uchun ~13h)
@@ -243,11 +253,14 @@ def update_shadows(connector):
     trades = _load_shadow()
     if not trades:
         return
+    # Manba izolyatsiyasi: faqat o'z manbamiz shadow'lari yangilanadi
+    still: list[dict] = [t for t in trades
+                         if t.get("source", DATA_SOURCE) != DATA_SOURCE]
+    ours = [t for t in trades if t.get("source", DATA_SOURCE) == DATA_SOURCE]
     by_symbol: dict[str, list[dict]] = {}
-    for tr in trades:
+    for tr in ours:
         by_symbol.setdefault(tr["symbol"], []).append(tr)
 
-    still: list[dict] = []
     for symbol, trs in by_symbol.items():
         df = connector.get_candles(symbol, "M5", count=400)
         if df.empty:

@@ -57,7 +57,7 @@ jobs:
       - name: Xayoliy hisob balansini tiklash
         uses: actions/cache/restore@v4
         with:
-          path: data/paper_account.json
+          path: data/paper_account_*.json
           key: scanner-state-v3-none    # ataylab mos kelmaydi -> restore-keys ishlaydi
           restore-keys: scanner-state-v3-
 

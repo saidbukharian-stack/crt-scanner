@@ -17,11 +17,15 @@ import json
 import logging
 import os
 
-from config import DB_PATH, PAPER_RISK_PCT, PAPER_START_BALANCE
+from config import DATA_SOURCE, DB_PATH, PAPER_RISK_PCT, PAPER_START_BALANCE
 
 logger = logging.getLogger(__name__)
 
-_ACCOUNT_PATH = os.path.join(os.path.dirname(DB_PATH), "paper_account.json")
+# MANBA IZOLYATSIYASI (Vazifa 5): har narx manbasi (mt5/yahoo/oanda) o'z
+# balans faylini yuritadi - MT5 va Yahoo P&L'i hech qachon aralashmaydi
+# (narx/sessiya farqlari sweep aniqlashga ta'sir qiladi, taqqoslab bo'lmaydi).
+_ACCOUNT_PATH = os.path.join(os.path.dirname(DB_PATH),
+                             f"paper_account_{DATA_SOURCE}.json")
 
 # "raw" olib tashlandi (2026-07-09): xom purge barcha o'lchovda minusda edi.
 # m5_ote (2026-07-09) OTE 62-79% retracement; m5_sb Silver Bullet FVG,
@@ -73,8 +77,8 @@ def summary() -> str:
     labels = {"m5_cisd": "M5 CISD (boshqaruvsiz)", "m5_managed": "M5 + boshqaruv",
               "m5_ote": "M5 OTE (62-79% kirish)", "m5_sb": "M5 Silver Bullet",
               "m1_ote": "M1 OTE (micro)"}
-    lines = [f"💰 <b>Xayoliy hisob</b> (boshlang'ich ${PAPER_START_BALANCE:,.0f}, "
-             f"risk {PAPER_RISK_PCT}%)"]
+    lines = [f"💰 <b>Xayoliy hisob</b> — manba: {DATA_SOURCE.upper()} "
+             f"(boshlang'ich ${PAPER_START_BALANCE:,.0f}, risk {PAPER_RISK_PCT}%)"]
     for v in VARIANTS:
         bal = data.get(v, PAPER_START_BALANCE)
         pct = (bal - PAPER_START_BALANCE) / PAPER_START_BALANCE * 100

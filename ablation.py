@@ -37,10 +37,17 @@ _seen: set | None = None  # yozilgan signal_id'lar (dedup uchun, CSV'dan yuklana
 
 
 def make_signal_id(symbol: str, condition: str, level_name: str,
-                   direction: str, sweep_time: str) -> str:
-    """Deterministik qisqa ID (mavjud dedup kaliti bilan bir xil semantika)."""
+                   direction: str, sweep_time: str, source: str = "") -> str:
+    """
+    Deterministik qisqa ID. MANBA ham kalitga kiradi (Vazifa 5) — aks holda
+    bulut (yahoo) log qilgan signal lokal (mt5) signalini dedup orqali bosib
+    qo'yardi. source berilmasa joriy DATA_SOURCE olinadi.
+    """
+    if not source:
+        from config import DATA_SOURCE
+        source = DATA_SOURCE
     day = str(sweep_time)[:10]
-    raw = f"{symbol}|{condition}|{level_name}|{direction}|{day}"
+    raw = f"{source}|{symbol}|{condition}|{level_name}|{direction}|{day}"
     return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:12]
 
 

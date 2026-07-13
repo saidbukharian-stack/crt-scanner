@@ -61,7 +61,8 @@ jobs:
           path: |
             data/notified.json
             data/trades.json
-            data/paper_account.json
+            data/paper_account_*.json
+            data/shadow_trades.json
             results/results_v3.csv
           key: scanner-state-v3-${{ github.run_id }}
           restore-keys: scanner-state-v3-
@@ -76,7 +77,8 @@ jobs:
           path: |
             data/notified.json
             data/trades.json
-            data/paper_account.json
+            data/paper_account_*.json
+            data/shadow_trades.json
             results/results_v3.csv
           key: scanner-state-v3-${{ github.run_id }}
 

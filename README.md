@@ -79,3 +79,15 @@ To'xtatish uchun: `Ctrl+C`
   orasidagi farq avtomatik aniqlanadi (`mt5_connector._detect_server_offset`),
   lekin yozgi/qishki vaqt (DST) o'zgarishlarida birinchi bir necha kun
   natijalarni tekshirib turing.
+
+## Manba izolyatsiyasi (MUHIM)
+
+**MT5 va Yahoo natijalari TAQQOSLANMAYDI** — narx (spot vs futures) va sessiya
+chegaralari farqi sweep aniqlashga bevosita ta'sir qiladi. Shu sabab:
+
+- Har savdo/signal `source` maydoni bilan belgilanadi (mt5/yahoo/oanda)
+- `update_trades`/`update_shadows` faqat O'Z manbasida ochilgan savdolarni
+  yangilaydi — boshqa manba savdosi o'z holicha kutadi
+- Xayoliy balans har manba uchun alohida: `data/paper_account_<source>.json`
+- Dedup kalitlari (notified.json, signal_id) manbani o'z ichiga oladi
+- `analyze_results.py` hisobotlari manbalarni hech qachon birlashtirmaydi

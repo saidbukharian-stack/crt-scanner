@@ -109,7 +109,8 @@ def load_trades(source: str | None, backtest_only: bool,
     df.loc[need, "signal_id"] = df.loc[need].apply(
         lambda r: make_signal_id(r.get("symbol", ""), r.get("condition", ""),
                                  r.get("level_name", ""), r.get("direction", ""),
-                                 str(r.get("entry_time_ny", ""))), axis=1)
+                                 str(r.get("entry_time_ny", "")),
+                                 source=r.get("source", "")), axis=1)
     if source:
         df = df[df["source"] == source]
     return df

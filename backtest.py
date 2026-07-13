@@ -266,7 +266,7 @@ def run_backtest(symbol: str, start: datetime, end: datetime) -> list[dict]:
 
             sid = ablation.make_signal_id(sig.symbol, sig.condition,
                                           sig.level_name, sig.direction,
-                                          sig.sweep_candle_time)
+                                          sig.sweep_candle_time, source=source)
             purge_iso = sig.sweep_candle_time
             entry_dt = datetime.fromisoformat(purge_iso)
             expiry_iso = ot._expiry_for(entry_dt).isoformat()
