@@ -40,6 +40,8 @@ class SweepSignal:
     # STDV proyeksiyasi (manipulyatsiya oyog'idan -2/-2.5/-4). QO'SHIMCHA ma'lumot,
     # maqsad EMAS - treyder bilan kelishilgan (2026-07-09): maqsad = likvidlik.
     stdv: dict | None = None
+    # Sweep shamining rad-dumi diapazonga nisbatan ulushi (ablation log uchun).
+    wick_pct: float = 0.0
 
 
 def _candle_in_windows(candle_time, windows) -> bool:
@@ -57,16 +59,21 @@ def _candle_in_windows(candle_time, windows) -> bool:
 MIN_REJECT_TAIL_FRAC = 0.30
 
 
-def _reject_ok(candle, kind: str) -> bool:
+def _wick_pct(candle, kind: str) -> float:
+    """Sweep shamining rad-dumi diapazonga nisbatan ulushi (0..1)."""
     rng = float(candle["high"]) - float(candle["low"])
     if rng <= 0:
-        return False
+        return 0.0
     o, c = float(candle["open"]), float(candle["close"])
-    if kind == "high":   # bearish sweep - yuqori dum (rad etish) uzun bo'lsin
+    if kind == "high":
         tail = float(candle["high"]) - max(o, c)
-    else:                # bullish sweep - pastki dum uzun bo'lsin
+    else:
         tail = min(o, c) - float(candle["low"])
-    return (tail / rng) >= MIN_REJECT_TAIL_FRAC
+    return round(tail / rng, 3)
+
+
+def _reject_ok(candle, kind: str) -> bool:
+    return _wick_pct(candle, kind) >= MIN_REJECT_TAIL_FRAC
 
 
 def detect_sweep(df_recent: pd.DataFrame, level: Level, condition_name: str,
@@ -109,6 +116,7 @@ def detect_sweep(df_recent: pd.DataFrame, level: Level, condition_name: str,
                     crt_mid=crt_mid,
                     liquidity_target=level.paired_price,
                     stdv=compute_stdv(df_recent, candle["time_ny"], "bearish_sweep"),
+                    wick_pct=_wick_pct(candle, "high"),
                 ))
         else:  # level.kind == "low"
             wicked_below = candle["low"] < level.price
@@ -127,6 +135,7 @@ def detect_sweep(df_recent: pd.DataFrame, level: Level, condition_name: str,
                     crt_mid=crt_mid,
                     liquidity_target=level.paired_price,
                     stdv=compute_stdv(df_recent, candle["time_ny"], "bullish_sweep"),
+                    wick_pct=_wick_pct(candle, "low"),
                 ))
 
     return signals

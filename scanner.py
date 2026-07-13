@@ -31,6 +31,8 @@ from config import (
     QT_FILTER_ENABLED,
     MIDNIGHT_BIAS_ENABLED,
     HRL_FILTER_ENABLED,
+    ABLATION_LOG_ENABLED,
+    SHADOW_TRACKING_ENABLED,
 )
 
 if DATA_SOURCE == "oanda":
@@ -40,9 +42,11 @@ elif DATA_SOURCE == "yahoo":
 else:
     from mt5_connector import connector
 from levels import all_levels_for_symbol
-from signals import scan_all_conditions
+from signals import scan_all_conditions, detect_cisd
 from telegram_notifier import notify_signal
-from outcome_tracker import register_trade, update_trades
+from outcome_tracker import (register_trade, update_trades,
+                             register_shadow, update_shadows)
+import ablation
 
 logging.basicConfig(
     level=logging.INFO,
@@ -78,6 +82,57 @@ def _save_notified_state():
         json.dump(sorted(fresh), f, ensure_ascii=False, indent=0)
 
 
+def evaluate_signal_filters(sig, df_m5, df_h4, mo) -> dict:
+    """
+    Signalning HAR filtrini ALOHIDA baholaydi (early-return yo'q).
+    Toggle'lar faqat YAKUNIY verdictга ta'sir qiladi; xom pass/fail har doim
+    qaytariladi (ablation tahlili uchun). Jonli skaner va backtest bir xil
+    ishlatadi.
+    """
+    import pandas as pd
+    from analysis import (premium_discount_ok, midnight_bias_ok,
+                          low_resistance_to_target)
+    from qt import qt_phase
+
+    pd_ok = bool(premium_discount_ok(sig.close_price, sig.direction, df_h4))
+    qp = qt_phase(pd.Timestamp(sig.sweep_candle_time))
+    qt_ok = bool(qp["favored"])
+    mo_ok = bool(midnight_bias_ok(sig.close_price, sig.direction, mo))
+    hrl_ok = bool(low_resistance_to_target(df_m5, sig.close_price,
+                                           sig.liquidity_target, sig.direction))
+
+    # Verdict: faqat YOQILGAN filtrlar hisobga olinadi (P/D har doim yoqilgan)
+    chain = [("pd", True, pd_ok),
+             ("qt", QT_FILTER_ENABLED, qt_ok),
+             ("mo_bias", MIDNIGHT_BIAS_ENABLED, mo_ok),
+             ("hrl", HRL_FILTER_ENABLED, hrl_ok)]
+    rejected_by = ""
+    for name, enabled, ok in chain:
+        if enabled and not ok:
+            rejected_by = name
+            break
+    return {
+        "pd": pd_ok, "qt": qt_ok, "qt_phase": qp["phase"],
+        "mo": mo_ok, "hrl": hrl_ok,
+        "verdict": "accepted" if not rejected_by else "rejected",
+        "rejected_by": rejected_by,
+    }
+
+
+def _scan_and_filter(symbol, now_ny, df_m5, df_h4, df_d1):
+    """
+    SOF signal+filtr yo'li (Telegram/fayl yozishsiz) — jonli skaner ham,
+    backtest ham shu funksiyani chaqiradi. Qaytaradi:
+      (signals, mo, [(sig, filter_result), ...])
+    """
+    from analysis import midnight_open
+    levels = all_levels_for_symbol(df_m5, df_h4, df_d1, now_ny)
+    signals = scan_all_conditions(df_m5, levels, symbol, SIGNAL_CONDITIONS)
+    mo = midnight_open(df_m5, now_ny)
+    evaluated = [(s, evaluate_signal_filters(s, df_m5, df_h4, mo)) for s in signals]
+    return signals, mo, evaluated
+
+
 def scan_symbol(symbol: str, now_ny: datetime) -> list:
     # 400 M5 (~33 soat) — Asia/London sessiya darajalari (20:00-00:00 NY, ~20
     # soat oldin) to'liq qamrab olinishi uchun (200 sham yetarli emas edi)
@@ -89,50 +144,48 @@ def scan_symbol(symbol: str, now_ny: datetime) -> list:
         logger.warning("Ma'lumot yetarli emas: %s", symbol)
         return []
 
-    levels = all_levels_for_symbol(df_m5, df_h4, df_d1, now_ny)
-    signals = scan_all_conditions(df_m5, levels, symbol, SIGNAL_CONDITIONS)
+    _, mo, evaluated = _scan_and_filter(symbol, now_ny, df_m5, df_h4, df_d1)
 
-    # SIFAT FILTRI: premium/discount (faqat discount'da BUY, premium'da SELL)
-    from analysis import premium_discount_ok
-    filtered = [s for s in signals
-                if premium_discount_ok(s.close_price, s.direction, df_h4)]
-    if len(filtered) < len(signals):
-        logger.info("%s: P/D filtri %d dan %d signalни o'tkazdi",
-                    symbol, len(signals), len(filtered))
+    accepted = []
+    for sig, r in evaluated:
+        if not ABLATION_LOG_ENABLED:
+            # Log o'chirilgan: eski xatti-harakat — faqat qabul qilinganlar
+            if r["verdict"] == "accepted":
+                accepted.append(sig)
+            continue
 
-    # QT FILTRI: faqat ma'qul fazada (Manipulation/Distribution) signal
-    if QT_FILTER_ENABLED:
+        sid = ablation.make_signal_id(sig.symbol, sig.condition,
+                                      sig.level_name, sig.direction,
+                                      sig.sweep_candle_time)
+        if ablation.already_logged(sid):
+            continue  # bu signal allaqachon ko'rilgan (dedup)
+
         import pandas as pd
-        from qt import qt_favored
-        kept = [s for s in filtered
-                if qt_favored(pd.Timestamp(s.sweep_candle_time))]
-        if len(kept) < len(filtered):
-            logger.info("%s: QT filtri %d dan %d signalни o'tkazdi (faqat Manip/Distrib)",
-                        symbol, len(filtered), len(kept))
-        filtered = kept
+        ts_utc = pd.Timestamp(sig.sweep_candle_time).tz_convert("UTC").isoformat()
+        cisd_ok = detect_cisd(df_m5, pd.Timestamp(sig.sweep_candle_time),
+                              sig.direction) is not None
+        ablation.log_signal({
+            "signal_id": sid, "timestamp_utc": ts_utc, "symbol": sig.symbol,
+            "direction": sig.direction, "level_type": ablation.level_type(sig.level_name),
+            "sweep_wick_pct": sig.wick_pct, "cisd_confirmed": cisd_ok,
+            "filter_pd": "pass" if r["pd"] else "fail",
+            "filter_qt": "pass" if r["qt"] else "fail",
+            "filter_qt_phase": r["qt_phase"],
+            "filter_mo_bias": "pass" if r["mo"] else "fail",
+            "filter_hrl": "pass" if r["hrl"] else "fail",
+            "final_verdict": r["verdict"], "rejected_by": r["rejected_by"],
+            "source": DATA_SOURCE,
+        })
 
-    # MIDNIGHT OPEN bias filtri: signal yo'nalishi 00:00 NY ochilishiga mos
-    if MIDNIGHT_BIAS_ENABLED:
-        from analysis import midnight_open, midnight_bias_ok
-        mo = midnight_open(df_m5, now_ny)
-        kept = [s for s in filtered
-                if midnight_bias_ok(s.close_price, s.direction, mo)]
-        if len(kept) < len(filtered):
-            logger.info("%s: Midnight bias %d dan %d signalни o'tkazdi (MO=%.5f)",
-                        symbol, len(filtered), len(kept), mo if mo else 0)
-        filtered = kept
+        if r["verdict"] == "accepted":
+            accepted.append(sig)
+        elif SHADOW_TRACKING_ENABLED:
+            # Rad etilgan: Telegram/paper YO'Q — faqat yengil shadow (m5_cisd)
+            register_shadow(sig, sid)
 
-    # HIGH-RESISTANCE-LIQUIDITY filtri: maqsadga yo'l toza (qarshi FVG yo'q)
-    if HRL_FILTER_ENABLED:
-        from analysis import low_resistance_to_target
-        kept = [s for s in filtered
-                if low_resistance_to_target(df_m5, s.close_price,
-                                            s.liquidity_target, s.direction)]
-        if len(kept) < len(filtered):
-            logger.info("%s: HRL filtri %d dan %d signalни o'tkazdi (toza yo'l)",
-                        symbol, len(filtered), len(kept))
-        filtered = kept
-    return filtered
+    logger.info("%s: %d signal, %d qabul (%d rad)",
+                symbol, len(evaluated), len(accepted), len(evaluated) - len(accepted))
+    return accepted
 
 
 def run_once():
@@ -166,6 +219,13 @@ def run_once():
         update_trades(connector)
     except Exception:
         logger.exception("Forward-test yangilashda xato")
+
+    # Rad etilgan signallarning shadow (m5_cisd) natijalarini yangilash
+    if ABLATION_LOG_ENABLED and SHADOW_TRACKING_ENABLED:
+        try:
+            update_shadows(connector)
+        except Exception:
+            logger.exception("Shadow-tracking yangilashda xato")
 
 
 def main():

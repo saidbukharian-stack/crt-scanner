@@ -229,6 +229,15 @@ QT_FILTER_ENABLED = True
 MIDNIGHT_BIAS_ENABLED = True
 
 # ---------------------------------------------------------------------------
+# Ablation logging - HAR signal (qabul + rad) results/signals_log.csv ga
+# yoziladi, har filtr alohida baholanadi. Rad etilganlar Telegram/paper'ga
+# BORMAYDI, faqat logga + yengil shadow-tracking (m5_cisd) uchun kuzatiladi.
+# Default yoqilgan (faqat qo'shimcha log; qabul/rad xatti-harakati o'zgarmaydi).
+# ---------------------------------------------------------------------------
+ABLATION_LOG_ENABLED = os.getenv("ABLATION_LOG_ENABLED", "1").strip() == "1"
+SHADOW_TRACKING_ENABLED = os.getenv("SHADOW_TRACKING_ENABLED", "1").strip() == "1"
+
+# ---------------------------------------------------------------------------
 # High-Resistance-Liquidity filtri (ICT) - kirish bilan likvidlik maqsadi
 # orasida qarshi FVG (yuqori qarshilik) bo'lsa signal o'tkazilmaydi.
 # ---------------------------------------------------------------------------

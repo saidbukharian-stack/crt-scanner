@@ -35,6 +35,7 @@ import logging
 import os
 from datetime import datetime, timedelta
 
+import ablation
 import paper_account
 from analysis import _unfilled_fvgs
 from config import (DATA_SOURCE, DB_PATH, MGMT_BE_FORCE_R, MGMT_PARTIAL_FRAC,
@@ -47,6 +48,7 @@ from telegram_notifier import send_telegram_message
 logger = logging.getLogger(__name__)
 
 _TRADES_PATH = os.path.join(os.path.dirname(DB_PATH), "trades.json")
+_SHADOW_PATH = os.path.join(os.path.dirname(DB_PATH), "shadow_trades.json")
 RESULTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results")
 # v3 = raw olib tashlandi + likvidlik maqsadlari + source ustuni.
 RESULTS_CSV = os.path.join(RESULTS_DIR, "results_v3.csv")
@@ -198,6 +200,88 @@ def update_trades(connector):
                     _record_result(tr, outcome, net_r)
 
     _save_trades(still_open)
+
+
+# ---------------------------------------------------------------------------
+# Shadow-tracking (Vazifa 1): RAD etilgan signallar uchun yengil kuzatuv.
+# Faqat m5_cisd bo'yicha xayoliy natija; balansga TA'SIR QILMAYDI, Telegram
+# YO'Q. Natija signals_log.csv dagi shadow_outcome_r ustuniga yoziladi.
+# ---------------------------------------------------------------------------
+def _load_shadow() -> list[dict]:
+    try:
+        with open(_SHADOW_PATH, encoding="utf-8") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+
+
+def _save_shadow(trades: list[dict]):
+    os.makedirs(os.path.dirname(_SHADOW_PATH), exist_ok=True)
+    with open(_SHADOW_PATH, "w", encoding="utf-8") as f:
+        json.dump(trades, f, ensure_ascii=False, indent=1)
+
+
+def register_shadow(sig: SweepSignal, signal_id: str):
+    """Rad etilgan signal uchun shadow (m5_cisd) savdo ochadi (pending)."""
+    trades = _load_shadow()
+    if any(t.get("signal_id") == signal_id for t in trades):
+        return  # dedup
+    entry_dt = datetime.fromisoformat(sig.sweep_candle_time)
+    trades.append({
+        "signal_id": signal_id, "symbol": sig.symbol, "source": DATA_SOURCE,
+        "direction": sig.direction, "crt_mid": sig.crt_mid,
+        "liquidity": sig.liquidity_target,
+        "entry_time": sig.sweep_candle_time,
+        "expiry_time": _expiry_for(entry_dt).isoformat(),
+        "status": "pending",
+    })
+    _save_shadow(trades)
+
+
+def update_shadows(connector):
+    """Shadow savdolarni m5_cisd qoidasi bilan yuritadi; hal bo'lganda logga yozadi."""
+    trades = _load_shadow()
+    if not trades:
+        return
+    by_symbol: dict[str, list[dict]] = {}
+    for tr in trades:
+        by_symbol.setdefault(tr["symbol"], []).append(tr)
+
+    still: list[dict] = []
+    for symbol, trs in by_symbol.items():
+        df = connector.get_candles(symbol, "M5", count=400)
+        if df.empty:
+            still.extend(trs)
+            continue
+        for tr in trs:
+            if tr["status"] == "pending":
+                purge_dt = datetime.fromisoformat(tr["entry_time"])
+                expiry_dt = datetime.fromisoformat(tr["expiry_time"])
+                cisd = detect_cisd(df, purge_dt, tr["direction"])
+                if cisd is not None:
+                    entry, stop = cisd["entry"], cisd["stop"]
+                    targets, r, _ = _targets_for(entry, stop, tr["direction"],
+                                                 tr.get("crt_mid"), tr.get("liquidity"))
+                    if r <= 0:
+                        continue  # yaroqsiz - shadow yozilmaydi (bo'sh qoladi)
+                    tr.update({"status": "active", "entry": entry, "sl": stop,
+                               "r": r, "entry_time": cisd["entry_time"],
+                               "targets": targets, "hits": {k: False for k in targets},
+                               "mfe": entry, "mae": entry})
+                    still.append(tr)
+                elif df["time_ny"].iloc[-1] >= expiry_dt:
+                    continue  # CISD shakllanmadi - drop, shadow bo'sh
+                else:
+                    still.append(tr)  # hali pending
+            else:  # active
+                resolved = _walk_cisd(tr, df)
+                if resolved is None:
+                    still.append(tr)
+                else:
+                    _outcome, net_r = resolved
+                    ablation.update_shadow(tr["signal_id"], net_r)
+                    # hal bo'ldi - ro'yxatdan tushadi
+    _save_shadow(still)
 
 
 def _try_activate_m5(tr: dict, df) -> dict | None:
