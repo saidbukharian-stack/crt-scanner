@@ -188,6 +188,29 @@ def scan_symbol(symbol: str, now_ny: datetime) -> list:
     return accepted
 
 
+def _llm_evaluate(sig) -> dict | None:
+    """Signal uchun strukturali LLM tanqidini oladi (xato bo'lsa None - signal kutmaydi)."""
+    from config import LLM_STRUCTURED_ENABLED
+    if not LLM_STRUCTURED_ENABLED:
+        return None
+    try:
+        from llm_client import (evaluate_signal_structured,
+                                GEMINI_API_KEY, GROQ_API_KEY)
+        if not (GEMINI_API_KEY or GROQ_API_KEY):
+            return None
+        summary = (
+            f"{sig.symbol} | {sig.condition} | {sig.level_name} | "
+            f"{sig.direction} | daraja={sig.level_price:.5f} | "
+            f"close={sig.close_price:.5f} | wick={sig.wick_pct:.0%} | "
+            f"50%={sig.crt_mid} | likvidlik={sig.liquidity_target} | "
+            f"vaqt(NY)={sig.sweep_candle_time}"
+        )
+        return evaluate_signal_structured(summary, sig.condition)
+    except Exception as exc:
+        logger.warning("LLM strukturali baho olinmadi: %s", exc)
+        return None
+
+
 def run_once():
     now_ny = datetime.now(NY_TZ)
     logger.info("Skanerlash boshlandi (NY vaqti: %s)", now_ny.strftime("%Y-%m-%d %H:%M"))
@@ -211,8 +234,18 @@ def run_once():
                 "SIGNAL: %s | %s | %s | %s",
                 sig.symbol, sig.condition, sig.level_name, sig.direction,
             )
-            notify_signal(sig)
+            llm_eval = _llm_evaluate(sig)  # strukturali tanqid (None bo'lishi mumkin)
+            notify_signal(sig, llm_eval=llm_eval)
             register_trade(sig)  # forward-test: xayoliy savdo ochiladi
+            if llm_eval and ABLATION_LOG_ENABLED:
+                sid = ablation.make_signal_id(sig.symbol, sig.condition,
+                                              sig.level_name, sig.direction,
+                                              sig.sweep_candle_time)
+                ablation.update_fields(sid, {
+                    "llm_score": llm_eval["score"],
+                    "llm_confidence": llm_eval["confidence"],
+                    "llm_counter_argument": llm_eval["counter_argument"][:200],
+                })
 
     # Ochiq xayoliy savdolarni yangi shamlar bilan tekshirish
     try:

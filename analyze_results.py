@@ -27,7 +27,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from ablation import level_type
+from ablation import level_type, make_signal_id
 from qt import daily_quarter
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
@@ -101,6 +101,15 @@ def load_trades(source: str | None, backtest_only: bool,
         df["entry_time_ny"].str[:10], errors="coerce").dt.day_name()
     df["level_type"] = df["level_name"].map(lambda x: level_type(x) if x else "?")
     df["session"] = df["entry_time_ny"].map(_session_of)
+    # Forward CSV'da signal_id yo'q - LLM ball merge'i uchun hisoblaymiz
+    # (entry kuni ~ sweep kuni; tungi chegara nodir istisno)
+    if "signal_id" not in df.columns:
+        df["signal_id"] = ""
+    need = df["signal_id"].isin(["", None]) | df["signal_id"].isna()
+    df.loc[need, "signal_id"] = df.loc[need].apply(
+        lambda r: make_signal_id(r.get("symbol", ""), r.get("condition", ""),
+                                 r.get("level_name", ""), r.get("direction", ""),
+                                 str(r.get("entry_time_ny", ""))), axis=1)
     if source:
         df = df[df["source"] == source]
     return df

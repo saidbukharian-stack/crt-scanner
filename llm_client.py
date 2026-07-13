@@ -13,8 +13,10 @@ Bilim bazasi (docs/MODEL_KNOWLEDGE.md) butun holicha kontekstga joylashtiriladi 
 RAG/vektor baza shart emas (hujjat ~10K token, ikki provayder ham ko'taradi).
 """
 
+import json
 import logging
 import os
+import re
 
 import requests
 
@@ -135,6 +137,97 @@ def _system_prompt() -> str:
         "tushuntir, qaror treyderning o'zida.\n\n"
         "=== BILIM BAZASI ===\n" + knowledge
     )
+
+
+def load_knowledge_sections(prefixes: list[str]) -> str:
+    """
+    Bilim bazasidan faqat berilgan bo'limlarni ("## N." prefiksi bo'yicha)
+    qaytaradi. Katta kontekstda muhim qoidalar yo'qolmasin degan maqsad —
+    signal turiga tegishli 3-5 bo'limgina yuboriladi.
+    """
+    knowledge = load_knowledge()
+    if not knowledge:
+        return ""
+    blocks = knowledge.split("\n## ")
+    picked = ["## " + b for b in blocks[1:]
+              if b.split(" ", 1)[0].rstrip() in prefixes]  # "4." / "21." aniq moslik
+    return "\n".join(picked)
+
+
+def _parse_json_block(text: str) -> dict:
+    """LLM javobidan JSON'ni ajratadi (markdown ```json ... ``` ni tozalab)."""
+    t = text.strip()
+    t = re.sub(r"^```(?:json)?\s*", "", t)
+    t = re.sub(r"\s*```$", "", t)
+    i, j = t.find("{"), t.rfind("}")
+    if i >= 0 and j > i:
+        t = t[i:j + 1]
+    return json.loads(t)
+
+
+_CRITIC_SCHEMA = (
+    '{"rule_compliance_score": <1-10 butun son>, '
+    '"rules_satisfied": ["..."], '
+    '"rules_violated_or_weak": ["..."], '
+    '"counter_argument": "bu setup nima uchun ISHLAMASLIGI mumkin - majburiy, bo\'sh bo\'lmasin", '
+    '"confidence": "low|medium|high"}'
+)
+
+
+def evaluate_signal_structured(signal_summary: str,
+                               condition: str = "") -> dict | None:
+    """
+    LLM'ni TANQIDCHI sifatida ishlatadi: setup'ni himoya qilmaydi, zaif
+    tomonlarni topadi. FAQAT JSON qaytarishi shart. Parse xatosida bitta
+    qayta urinish. Muvaffaqiyatsiz bo'lsa None (signal baribir yuboriladi).
+    """
+    from config import LLM_SECTIONS_BY_CONDITION
+    prefixes = LLM_SECTIONS_BY_CONDITION.get(
+        condition, LLM_SECTIONS_BY_CONDITION["_default"])
+    sections = load_knowledge_sections(prefixes)
+
+    system = (
+        "Sen CRT/ICT savdo metodologiyasi bo'yicha QATTIQ TANQIDCHISAN. "
+        "Sen setup'ni HIMOYA QILMA. Sening vazifang - zaif tomonlarni topish. "
+        "Kamida bitta jiddiy qarshi-argument keltirmasang, javob qabul "
+        "qilinmaydi. Baholashda faqat quyidagi qoidalarga tayan.\n\n"
+        "JAVOB FORMATI: FAQAT bitta JSON obyekt, boshqa HECH NARSA yozma "
+        "(izoh yo'q, markdown yo'q):\n" + _CRITIC_SCHEMA +
+        "\n\nMatn maydonlari o'zbek tilida bo'lsin.\n\n"
+        "=== TEGISHLI QOIDALAR ===\n" + sections
+    )
+    user = (
+        "Quyidagi signalni qoidalarga muvofiqligini tanqidiy baholab, "
+        "faqat JSON qaytar:\n\n" + signal_summary
+    )
+
+    for attempt in (1, 2):
+        raw = ask_llm(system, user if attempt == 1 else
+                      user + "\n\nDIQQAT: oldingi javob JSON emas edi. "
+                             "FAQAT to'g'ri JSON obyekt qaytar!",
+                      max_tokens=600)
+        if not raw:
+            return None
+        try:
+            d = _parse_json_block(raw)
+            score = int(d.get("rule_compliance_score", 0))
+            counter = str(d.get("counter_argument", "")).strip()
+            conf = str(d.get("confidence", "")).strip().lower()
+            if not (1 <= score <= 10) or not counter:
+                raise ValueError("score yoki counter_argument yaroqsiz")
+            if conf not in ("low", "medium", "high"):
+                conf = "low"
+            return {
+                "score": score,
+                "satisfied": [str(x) for x in d.get("rules_satisfied", [])][:6],
+                "weak": [str(x) for x in d.get("rules_violated_or_weak", [])][:6],
+                "counter_argument": counter,
+                "confidence": conf,
+            }
+        except (json.JSONDecodeError, ValueError, TypeError) as exc:
+            logger.warning("LLM JSON parse xatosi (%d-urinish): %s | javob: %.120s",
+                           attempt, exc, raw)
+    return None
 
 
 def explain_signal(signal_summary: str) -> str | None:

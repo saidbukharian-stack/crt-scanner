@@ -242,6 +242,29 @@ SHADOW_TRACKING_ENABLED = os.getenv("SHADOW_TRACKING_ENABLED", "1").strip() == "
 # bo'lmasin). Har simulyatsiya qilingan savdodan bir marta ayiriladi.
 # BACKTEST_SPREAD_MULT env bilan umumiy ko'paytiriladi (default 1.0).
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# LLM strukturali baho (Vazifa 4): signal xabarida erkin matn o'rniga qat'iy
+# JSON tanqid. Kontekst qisqartiriladi - butun bilim bazasi emas, signal
+# turiga tegishli bo'limlargina yuboriladi (bo'lim raqami prefikslari,
+# docs/MODEL_KNOWLEDGE.md dagi "## N." sarlavhalariga mos).
+# ---------------------------------------------------------------------------
+LLM_STRUCTURED_ENABLED = os.getenv("LLM_STRUCTURED_ENABLED", "1").strip() == "1"
+
+LLM_SECTIONS_BY_CONDITION = {
+    # CRT range sweep: falsafa, Po3, turtle soup, Model#1, CISD, maqsad, failed CRT
+    "crt_range_sweep": ["1.", "3.", "4.", "5.", "8.", "10.", "15."],
+    # PDH/PDL: sweep, key level, CISD, maqsad, bias, failed
+    "pdh_pdl_sweep": ["4.", "6.", "8.", "10.", "14.", "15."],
+    # Asia/London sessiya: sweep, CISD, maqsad, vaqt nazariyasi, failed
+    "asia_hl_sweep": ["4.", "8.", "10.", "12.", "15."],
+    # NWOG/NDOG: sweep, CISD, maqsad, ICT opening gap bo'limi
+    "opening_gap_sweep": ["4.", "8.", "10.", "21."],
+    # IPDA: sweep, CISD, maqsad, IPDA bo'limi
+    "ipda_sweep": ["4.", "8.", "10.", "22."],
+    # noma'lum shart uchun zaxira
+    "_default": ["1.", "4.", "8.", "10."],
+}
+
 SPREAD_PRICE = {
     "EURUSD": 0.00008,   # ~0.8 pip
     "GBPUSD": 0.00010,

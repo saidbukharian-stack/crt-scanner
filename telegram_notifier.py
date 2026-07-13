@@ -90,7 +90,20 @@ def send_telegram_photo(photo_path: str, caption: str = "") -> bool:
         return False
 
 
-def notify_signal(signal: SweepSignal) -> bool:
+def format_llm_eval(ev: dict) -> str:
+    """Strukturali LLM tanqidini ixcham Telegram matniga aylantiradi."""
+    lines = [f"🧐 <b>LLM tanqidi:</b> {ev['score']}/10 (ishonch: {ev['confidence']})"]
+    if ev.get("weak"):
+        lines.append("Zaif: " + "; ".join(ev["weak"][:3]))
+    lines.append(f"❗ <b>Qarshi-argument:</b> {ev['counter_argument']}")
+    return "\n".join(lines)
+
+
+def notify_signal(signal: SweepSignal, llm_eval: dict | None = None) -> bool:
+    """
+    llm_eval — scanner'da bir marta hisoblangan strukturali baho (Vazifa 4).
+    Berilmasa LLM bo'limisiz yuboriladi (signal hech qachon kutmaydi).
+    """
     message = format_signal_message(signal)
 
     # Mexanik kirish/stop/maqsad rejasi
@@ -102,20 +115,12 @@ def notify_signal(signal: SweepSignal) -> bool:
     except Exception as exc:
         logger.warning("Reja qo'shilmadi: %s", exc)
 
-    # LLM tushuntirishi (Gemini/Groq sozlangan bo'lsa) - signalga qo'shiladi
-    try:
-        from llm_client import explain_signal, GEMINI_API_KEY, GROQ_API_KEY
-        if GEMINI_API_KEY or GROQ_API_KEY:
-            summary = (
-                f"{signal.symbol} | {signal.condition} | {signal.level_name} | "
-                f"{signal.direction} | daraja={signal.level_price:.5f} | "
-                f"close={signal.close_price:.5f} | vaqt(NY)={signal.sweep_candle_time}"
-            )
-            explanation = explain_signal(summary)
-            if explanation:
-                message += f"\n\n🤖 <b>LLM izohi:</b>\n{explanation}"
-    except Exception as exc:  # LLM ishlamasa signal baribir yuboriladi
-        logger.warning("LLM tushuntirish qo'shilmadi: %s", exc)
+    # LLM strukturali tanqid (erkin matn "sotuvchi" o'rniga - Vazifa 4)
+    if llm_eval:
+        try:
+            message += "\n\n" + format_llm_eval(llm_eval)
+        except Exception as exc:
+            logger.warning("LLM baho qo'shilmadi: %s", exc)
 
     # Grafik-rasm (candlestick + kirish/stop/maqsad) - matn caption bilan.
     # Rasm chiqmasa yoki juda uzun bo'lsa - matnni alohida yuboramiz.
