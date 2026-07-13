@@ -238,6 +238,21 @@ ABLATION_LOG_ENABLED = os.getenv("ABLATION_LOG_ENABLED", "1").strip() == "1"
 SHADOW_TRACKING_ENABLED = os.getenv("SHADOW_TRACKING_ENABLED", "1").strip() == "1"
 
 # ---------------------------------------------------------------------------
+# Backtest: konservativ spread/slippage (NARX BIRLIGIDA, pip emas - chalkashlik
+# bo'lmasin). Har simulyatsiya qilingan savdodan bir marta ayiriladi.
+# BACKTEST_SPREAD_MULT env bilan umumiy ko'paytiriladi (default 1.0).
+# ---------------------------------------------------------------------------
+SPREAD_PRICE = {
+    "EURUSD": 0.00008,   # ~0.8 pip
+    "GBPUSD": 0.00010,
+    "USDCAD": 0.00012,
+    "XAUUSD": 0.30,      # ~30 sent
+    "USTEC": 2.0,        # ~2 indeks punkti
+    "US500": 0.5,
+}
+BACKTEST_SPREAD_MULT = float(os.getenv("BACKTEST_SPREAD_MULT", "1.0"))
+
+# ---------------------------------------------------------------------------
 # High-Resistance-Liquidity filtri (ICT) - kirish bilan likvidlik maqsadi
 # orasida qarshi FVG (yuqori qarshilik) bo'lsa signal o'tkazilmaydi.
 # ---------------------------------------------------------------------------

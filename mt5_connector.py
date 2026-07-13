@@ -189,6 +189,45 @@ class MT5Connector:
         df = df.rename(columns={"tick_volume": "volume"})
         return df[["time_ny", "time_utc", "open", "high", "low", "close", "volume"]]
 
+    def get_candles_range(self, symbol: str, timeframe: str,
+                          start_utc: datetime, end_utc: datetime) -> pd.DataFrame:
+        """
+        Berilgan UTC oraliq uchun tarixiy shamlar (backtest uchun).
+        copy_rates_range server vaqti bilan ishlaydi — offsetni qo'llab,
+        keng chegara bilan so'rab, keyin aniq filtrlaymiz.
+        M1 kabi katta so'rovlar 30 kunlik bo'laklarga bo'linadi.
+        """
+        if not self.ensure_symbol(symbol):
+            return pd.DataFrame()
+        tf_const = getattr(mt5, _TIMEFRAME_MAP[timeframe])
+        off = timedelta(hours=self._server_utc_offset_hours or 0)
+
+        chunk = timedelta(days=30 if timeframe == "M1" else 120)
+        frames = []
+        cur = start_utc
+        while cur < end_utc:
+            nxt = min(cur + chunk, end_utc)
+            # server devoriy vaqti sifatida so'raladi (±1 kun zaxira)
+            s = (cur + off - timedelta(days=1)).replace(tzinfo=timezone.utc)
+            e = (nxt + off + timedelta(days=1)).replace(tzinfo=timezone.utc)
+            rates = mt5.copy_rates_range(symbol, tf_const, s, e)
+            if rates is not None and len(rates):
+                frames.append(pd.DataFrame(rates))
+            cur = nxt
+        if not frames:
+            return pd.DataFrame()
+        df = pd.concat(frames).drop_duplicates(subset="time").sort_values("time")
+        df["time_utc"] = pd.to_datetime(df["time"], unit="s", utc=True) - off
+        df["time_ny"] = df["time_utc"].dt.tz_convert(NY_TZ)
+        df = df.rename(columns={"tick_volume": "volume"})
+        start_ts = pd.Timestamp(start_utc, tz="UTC") if start_utc.tzinfo is None \
+            else pd.Timestamp(start_utc)
+        end_ts = pd.Timestamp(end_utc, tz="UTC") if end_utc.tzinfo is None \
+            else pd.Timestamp(end_utc)
+        df = df[(df["time_utc"] >= start_ts) & (df["time_utc"] < end_ts)]
+        return df[["time_ny", "time_utc", "open", "high", "low",
+                   "close", "volume"]].reset_index(drop=True)
+
     def get_current_price(self, symbol: str) -> dict:
         """Symbol uchun joriy bid/ask narxini qaytaradi."""
         if not self.ensure_symbol(symbol):
