@@ -41,13 +41,13 @@ USE_TV_SCREENSHOT = os.getenv("USE_TV_SCREENSHOT", "0").strip() == "1"
 # (masalan "XAUUSD" o'rniga "XAUUSDm" yoki "GOLD" bo'lishi mumkin).
 # Terminalni ochib, Market Watch'da aniq nomni tekshirib, shu yerga yozing.
 # ---------------------------------------------------------------------------
+# Indekslar (USTEC/US500) OLIB TASHLANDI (2026-07-14, treyder qarori):
+# faqat forex va metallar qoladi.
 INSTRUMENTS = [
     "EURUSD",
     "GBPUSD",
     "USDCAD",
     "XAUUSD",
-    "USTEC",    # Nasdaq 100 (MetaQuotes-Demo'da shu nom; boshqa brokerlarda US100/NAS100 bo'lishi mumkin)
-    "US500",    # S&P 500 CFD (broker: SPX500, US500 bo'lishi mumkin)
 ]
 
 # OANDA instrument nomlari (DATA_SOURCE=oanda bo'lganda ishlatiladi).
@@ -86,8 +86,6 @@ YAHOO_SYMBOL_MAP = {
 SMT_PAIRS = {
     "EURUSD": [("GBPUSD", False)],
     "GBPUSD": [("EURUSD", False)],
-    "USTEC": [("US500", False)],
-    "US500": [("USTEC", False)],
     "XAUUSD": [("XAGUSD", False)],
 }
 
