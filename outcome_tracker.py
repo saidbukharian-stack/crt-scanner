@@ -474,7 +474,17 @@ def _walk_managed(tr: dict, df) -> tuple[str, float] | None:
     """
     50% (crt_mid) da yarim yopish + breakeven, qolgani likvidlik (100%) da.
     Har skanda kirishdan qayta yuriladi (sof funksiya, ikki marta hisob xavfsiz).
+
+    Kalibrlash (config, dinamik o'qiladi - tajribalar uchun):
+      MGMT_PARTIAL_ENABLED=False -> yarim yopish o'chiq
+      MGMT_BE_AT_R=1.0 -> BE 50%-tegishda emas, MFE>=1R bo'lgach ko'chiriladi
+      (ikkalasida ham FVG-to'siq tekshiruvi saqlanadi; default = eski xatti-harakat)
     """
+    import config as _cfg
+    partial_on = getattr(_cfg, "MGMT_PARTIAL_ENABLED", True)
+    be_on = getattr(_cfg, "MGMT_BE_ENABLED", False)   # 2026-07-14: default O'CHIQ
+    be_at_r = getattr(_cfg, "MGMT_BE_AT_R", None)
+
     entry_dt = datetime.fromisoformat(tr["entry_time"])
     expiry_dt = datetime.fromisoformat(tr["expiry_time"])
     entry, r = tr["entry"], tr["r"]
@@ -520,17 +530,28 @@ def _walk_managed(tr: dict, df) -> tuple[str, float] | None:
             outcome = ("be_after_partial" if partial_done else "breakeven") if be_moved else "stop"
             return outcome, realized
 
-        # 2) 50% maqsad -> yarim yopish + breakeven ko'rib chiqish
-        if t50 is not None and not partial_done and \
-                ((is_long and hi >= t50) or (not is_long and low <= t50)):
+        # 2) 50% maqsad tegdimi (hisobot uchun har doim belgilanadi)
+        t50_touched = t50 is not None and \
+            ((is_long and hi >= t50) or (not is_long and low <= t50))
+        t50_first_touch = t50_touched and not hits["50"]
+        if t50_first_touch:
+            hits["50"] = True
+        # 2a) Yarim yopish (yoqilgan bo'lsa)
+        if partial_on and t50_touched and not partial_done:
             realized += MGMT_PARTIAL_FRAC * sign * (t50 - entry) / r
             remaining -= MGMT_PARTIAL_FRAC
             partial_done = True
-            hits["50"] = True
-            # breakeven: orqaga tortadigan FVG/OB qolmagan bo'lsa
-            seg = df.iloc[max(0, entry_pos): entry_pos + pos + 2]
-            if not _pullback_obstacle(seg, entry, close, is_long):
-                sl, be_moved = entry, True
+        # 2b) Breakeven qarori — TREYDER QARORI (2026-07-14): default O'CHIQ.
+        #     Stop hech qachon ko'chirilmaydi; qolgan yarim 100% yoki stopgacha.
+        #     (MGMT_BE_ENABLED=1 qilinsa: be_at_r=None -> 50%-tegishda,
+        #      son -> MFE shu R'ga yetgach; FVG-to'siq tekshiruvi bilan)
+        if be_on and not be_moved:
+            mfe_r_now = sign * (mfe - entry) / r
+            trigger = (t50_first_touch if be_at_r is None else mfe_r_now >= be_at_r)
+            if trigger:
+                seg = df.iloc[max(0, entry_pos): entry_pos + pos + 2]
+                if not _pullback_obstacle(seg, entry, close, is_long):
+                    sl, be_moved = entry, True
 
         # 3) Likvidlik (100%) -> qolgan ulushni yopamiz
         if (is_long and hi >= liq) or (not is_long and low <= liq):
@@ -540,9 +561,9 @@ def _walk_managed(tr: dict, df) -> tuple[str, float] | None:
             tr["partial_done"] = partial_done
             return "liquidity", realized
 
-        # 4) Majburiy breakeven (2R) - to'siq bo'lsa ham
-        if not be_moved and ((is_long and hi >= be_force_px) or
-                             (not is_long and low <= be_force_px)):
+        # 4) Majburiy breakeven (2R) - faqat BE yoqilgan bo'lsa
+        if be_on and not be_moved and ((is_long and hi >= be_force_px) or
+                                       (not is_long and low <= be_force_px)):
             sl, be_moved = entry, True
 
         prev_close = close

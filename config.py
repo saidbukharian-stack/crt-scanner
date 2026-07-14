@@ -214,10 +214,12 @@ MGMT_BE_FORCE_R = 2.0          # narx shu R'ga yetsa, to'siq bo'lsa ham majburiy
 
 # Boshqaruv kalibrlash (2026-07-14 juftlangan tahlil: barvaqt BE g'oliblarni
 # o'ldirardi, himoya esa deyarli ishlamasdi):
+#   MGMT_BE_ENABLED - TREYDER QARORI (2026-07-14): BE UMUMAN O'CHIQ.
+#     Qoida: 50% maqsadda yarim yopiladi, qolgan yarmi 100% likvidlikkacha
+#     boradi, stop joyida qoladi (hech qachon ko'chirilmaydi).
 #   MGMT_PARTIAL_ENABLED - 50% maqsadda yarim yopish yoqiq/o'chiq
-#   MGMT_BE_AT_R - bo'sh ("") = eski xatti-harakat (BE 50% tegishi bilan,
-#     FVG-to'siq tekshiruvi bilan). Son bo'lsa (masalan "1.0") - BE faqat
-#     MFE shu R'ga yetgach ko'chiriladi (FVG tekshiruvi saqlanadi).
+#   MGMT_BE_AT_R - faqat BE yoqilganda: bo'sh = 50%-tegishda, son = shu R'da
+MGMT_BE_ENABLED = os.getenv("MGMT_BE_ENABLED", "0").strip() == "1"
 MGMT_PARTIAL_ENABLED = os.getenv("MGMT_PARTIAL_ENABLED", "1").strip() == "1"
 _be_at = os.getenv("MGMT_BE_AT_R", "").strip()
 MGMT_BE_AT_R = float(_be_at) if _be_at else None

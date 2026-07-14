@@ -223,10 +223,11 @@ def format_trade_plan(sig: SweepSignal) -> str:
     # Asosiy maqsad = LIKVIDLIK: 50% (o'rta) va qarshi tomon (100%)
     if sig.crt_mid is not None:
         d50 = abs(sig.crt_mid - entry) / r
-        lines.append(f"• Maqsad 50%: {sig.crt_mid:.5f} ({d50:.1f}R) — yarim olib, breakeven")
+        lines.append(f"• Maqsad 50%: {sig.crt_mid:.5f} ({d50:.1f}R) — yarim pozitsiya yopiladi")
     if sig.liquidity_target is not None:
         d100 = abs(sig.liquidity_target - entry) / r
-        lines.append(f"• Maqsad likvidlik (100%): {sig.liquidity_target:.5f} ({d100:.1f}R) — qolgan yarmi")
+        lines.append(f"• Maqsad likvidlik (100%): {sig.liquidity_target:.5f} ({d100:.1f}R) — "
+                     f"qolgan yarmi (stop joyida qoladi, BE yo'q)")
     txt = stdv_text(sig.stdv)
     if txt:
         lines.append(txt + "  <i>(qo'shimcha ma'lumot)</i>")
