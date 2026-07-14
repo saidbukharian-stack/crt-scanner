@@ -249,11 +249,14 @@ def scan_all_conditions(df_recent: pd.DataFrame, levels: list[Level],
     """
     all_signals: list[SweepSignal] = []
 
+    from config import OPENING_GAP_SIGNAL_PREFIXES
     condition_prefix_map = {
         "asia_hl_sweep": "Asia_",
         "pdh_pdl_sweep": "PD",              # PDH / PDL
         "crt_range_sweep": "CRT_",
-        "opening_gap_sweep": ("NWOG", "NDOG"),  # ochilish bo'shliqlari
+        # ochilish bo'shliqlari - qaysilari signal berishi config'da
+        # (NDOG 2026-07-14 da olib tashlangan, backtest zarari uchun)
+        "opening_gap_sweep": OPENING_GAP_SIGNAL_PREFIXES,
         "ipda_sweep": "IPDA",                   # IPDA 20/40/60 kun ekstremumlari
     }
 

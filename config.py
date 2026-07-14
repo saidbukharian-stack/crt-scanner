@@ -162,6 +162,14 @@ SIGNAL_CONDITIONS = {
     "ipda_sweep": True,          # IPDA 20/40/60 kunlik ekstremum sweep (ICT)
 }
 
+# Opening-gap sweep qaysi darajalardan signal beradi. NDOG OLIB TASHLANDI
+# (2026-07-14, treyder qarori): 6 oylik backtest'da n=78, o'rt -0.22R —
+# eng katta zarar manbai edi. NWOG qoladi (n=11, -0.07R — neytral).
+# Darajalar /holat tahlilida ko'rinaveradi, faqat signal bermaydi.
+OPENING_GAP_SIGNAL_PREFIXES = tuple(
+    p.strip() for p in os.getenv("OPENING_GAP_SIGNAL_PREFIXES", "NWOG").split(",")
+    if p.strip())
+
 # ---------------------------------------------------------------------------
 # Skanerlash sozlamalari
 # ---------------------------------------------------------------------------
@@ -203,6 +211,16 @@ PAPER_RISK_PCT = 1.0           # har bir savdoga risk, balansning %
 # ---------------------------------------------------------------------------
 MGMT_PARTIAL_FRAC = 0.5        # 50% maqsadda qancha ulush yopiladi (0.5 = yarmi)
 MGMT_BE_FORCE_R = 2.0          # narx shu R'ga yetsa, to'siq bo'lsa ham majburiy B/E
+
+# Boshqaruv kalibrlash (2026-07-14 juftlangan tahlil: barvaqt BE g'oliblarni
+# o'ldirardi, himoya esa deyarli ishlamasdi):
+#   MGMT_PARTIAL_ENABLED - 50% maqsadda yarim yopish yoqiq/o'chiq
+#   MGMT_BE_AT_R - bo'sh ("") = eski xatti-harakat (BE 50% tegishi bilan,
+#     FVG-to'siq tekshiruvi bilan). Son bo'lsa (masalan "1.0") - BE faqat
+#     MFE shu R'ga yetgach ko'chiriladi (FVG tekshiruvi saqlanadi).
+MGMT_PARTIAL_ENABLED = os.getenv("MGMT_PARTIAL_ENABLED", "1").strip() == "1"
+_be_at = os.getenv("MGMT_BE_AT_R", "").strip()
+MGMT_BE_AT_R = float(_be_at) if _be_at else None
 
 # ---------------------------------------------------------------------------
 # OTE (Optimal Trade Entry) varianti - ICT tutoriallaridan (2026-07-09).
