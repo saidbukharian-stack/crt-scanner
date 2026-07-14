@@ -158,7 +158,7 @@ SIGNAL_CONDITIONS = {
     "asia_hl_sweep": True,       # Asia session high/low sweep
     "pdh_pdl_sweep": True,       # Oldingi kun high/low sweep
     "crt_range_sweep": True,     # CRT (1AM/5AM/9AM) range sweep
-    "opening_gap_sweep": True,   # NWOG/NDOG ochilish bo'shlig'i sweep (ICT)
+    "opening_gap_sweep": False,  # NWOG/NDOG o'chiq (2026-07-14, backtest zarari)
     "ipda_sweep": True,          # IPDA 20/40/60 kunlik ekstremum sweep (ICT)
 }
 
