@@ -255,6 +255,11 @@ MIDNIGHT_BIAS_ENABLED = True
 ABLATION_LOG_ENABLED = os.getenv("ABLATION_LOG_ENABLED", "1").strip() == "1"
 SHADOW_TRACKING_ENABLED = os.getenv("SHADOW_TRACKING_ENABLED", "1").strip() == "1"
 
+# Rad etilgan signal haqida ham QISQA xabar yuborish (treyder tanlovi,
+# 2026-07-16): tizim tirikligini ko'rsatadi, kuniga ~3 ta qo'shimcha xabar.
+# Reja/LLM/grafik YO'Q - bir qatorlik ogohlantirish xolos.
+NOTIFY_REJECTED_ENABLED = os.getenv("NOTIFY_REJECTED_ENABLED", "1").strip() == "1"
+
 # ---------------------------------------------------------------------------
 # Backtest: konservativ spread/slippage (NARX BIRLIGIDA, pip emas - chalkashlik
 # bo'lmasin). Har simulyatsiya qilingan savdodan bir marta ayiriladi.

@@ -179,13 +179,44 @@ def scan_symbol(symbol: str, now_ny: datetime) -> list:
 
         if r["verdict"] == "accepted":
             accepted.append(sig)
-        elif SHADOW_TRACKING_ENABLED:
-            # Rad etilgan: Telegram/paper YO'Q — faqat yengil shadow (m5_cisd)
-            register_shadow(sig, sid)
+        else:
+            if SHADOW_TRACKING_ENABLED:
+                # Rad etilgan: paper savdo YO'Q — faqat yengil shadow (m5_cisd)
+                register_shadow(sig, sid)
+            _notify_rejected(sig, r)  # qisqa ogohlantirish (config bilan)
 
     logger.info("%s: %d signal, %d qabul (%d rad)",
                 symbol, len(evaluated), len(accepted), len(evaluated) - len(accepted))
     return accepted
+
+
+_FILTER_LABELS = {
+    "pd": "Premium/Discount (noto'g'ri zona)",
+    "qt": "QT faza (Manip/Distrib emas)",
+    "mo_bias": "Midnight bias (yo'nalish mos emas)",
+    "hrl": "HRL (yo'lda qarshi FVG to'siq)",
+}
+
+
+def _notify_rejected(sig, filter_result: dict):
+    """
+    Rad etilgan signal haqida BIR QATORLIK xabar (treyder tanlovi, 2026-07-16).
+    Reja/LLM/grafik yo'q, savdo ochilmaydi - shunchaki 'tizim ko'rdi' belgisi.
+    """
+    from config import NOTIFY_REJECTED_ENABLED
+    if not NOTIFY_REJECTED_ENABLED:
+        return
+    try:
+        from telegram_notifier import send_telegram_message
+        sabab = _FILTER_LABELS.get(filter_result["rejected_by"],
+                                   filter_result["rejected_by"])
+        yon = "LONG" if sig.direction == "bullish_sweep" else "SHORT"
+        send_telegram_message(
+            f"⚪ <b>{sig.symbol}</b> {yon} — {sig.level_name} sweep topildi, "
+            f"lekin rad etildi: <i>{sabab}</i>. Savdo ochilmadi (shadow kuzatuvda)."
+        )
+    except Exception as exc:
+        logger.warning("Rad-xabari yuborilmadi: %s", exc)
 
 
 def _llm_evaluate(sig) -> dict | None:
