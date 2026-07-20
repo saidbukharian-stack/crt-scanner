@@ -126,8 +126,14 @@ def ask_llm(system: str, user: str, max_tokens: int = 800) -> str | None:
 # ---------------------------------------------------------------------------
 # Tizim ko'rsatmasi (system prompt) - bilim bazasi bilan
 # ---------------------------------------------------------------------------
+# /holat va savol-javob uchun asosiy bo'limlar (bilim bazasi 30KB+ bo'lib
+# Groq bepul limitidan oshdi - HTTP 413). Yadro bo'limlargina yuboriladi.
+_CORE_SECTIONS = ["1.", "3.", "4.", "6.", "8.", "10.", "12.", "14.",
+                  "15.", "18.", "20.", "23."]
+
+
 def _system_prompt() -> str:
-    knowledge = load_knowledge()
+    knowledge = load_knowledge_sections(_CORE_SECTIONS) or load_knowledge()
     return (
         "Sen CRT/Turtle Soup savdo metodologiyasi bo'yicha yordamchi "
         "instrumensan (savdo roboti EMAS, maslahatchi). Treyderga o'zbek "
