@@ -275,17 +275,17 @@ LLM_STRUCTURED_ENABLED = os.getenv("LLM_STRUCTURED_ENABLED", "1").strip() == "1"
 
 LLM_SECTIONS_BY_CONDITION = {
     # CRT range sweep: falsafa, Po3, turtle soup, Model#1, CISD, maqsad, failed CRT
-    "crt_range_sweep": ["1.", "3.", "4.", "5.", "8.", "10.", "15."],
+    "crt_range_sweep": ["1.", "3.", "4.", "5.", "8.", "10.", "15.", "23."],
     # PDH/PDL: sweep, key level, CISD, maqsad, bias, failed
-    "pdh_pdl_sweep": ["4.", "6.", "8.", "10.", "14.", "15."],
+    "pdh_pdl_sweep": ["4.", "6.", "8.", "10.", "14.", "15.", "23."],
     # Asia/London sessiya: sweep, CISD, maqsad, vaqt nazariyasi, failed
-    "asia_hl_sweep": ["4.", "8.", "10.", "12.", "15."],
+    "asia_hl_sweep": ["4.", "8.", "10.", "12.", "15.", "23."],
     # NWOG/NDOG: sweep, CISD, maqsad, ICT opening gap bo'limi
-    "opening_gap_sweep": ["4.", "8.", "10.", "21."],
+    "opening_gap_sweep": ["4.", "8.", "10.", "21.", "23."],
     # IPDA: sweep, CISD, maqsad, IPDA bo'limi
-    "ipda_sweep": ["4.", "8.", "10.", "22."],
+    "ipda_sweep": ["4.", "8.", "10.", "22.", "23."],
     # noma'lum shart uchun zaxira
-    "_default": ["1.", "4.", "8.", "10."],
+    "_default": ["1.", "4.", "8.", "10.", "23."],
 }
 
 SPREAD_PRICE = {
