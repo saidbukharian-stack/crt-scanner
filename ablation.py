@@ -31,7 +31,34 @@ COLUMNS = [
     "shadow_outcome_r",
     # Vazifa 4 uchun oldindan joy (hozircha bo'sh)
     "llm_score", "llm_confidence", "llm_counter_argument",
+    # Ontologiya (2026-07-20): mexanik to'liqlik balli + tarixiy analog statistikasi
+    "confluence_score", "analog_n", "analog_win_pct",
 ]
+
+
+def _migrate_header():
+    """
+    Sxema o'zgargan bo'lsa (yangi ustunlar), mavjud CSV'ni yangi sarlavha
+    bilan qayta yozadi — eski ma'lumot saqlanadi, yangi ustunlar bo'sh.
+    """
+    if not os.path.exists(SIGNALS_LOG_CSV):
+        return
+    try:
+        with open(SIGNALS_LOG_CSV, encoding="utf-8-sig", newline="") as f:
+            reader = csv.reader(f)
+            header = next(reader, None)
+        if header == COLUMNS:
+            return
+        with open(SIGNALS_LOG_CSV, encoding="utf-8-sig", newline="") as f:
+            rows = list(csv.DictReader(f))
+        with open(SIGNALS_LOG_CSV, "w", newline="", encoding="utf-8") as f:
+            w = csv.DictWriter(f, fieldnames=COLUMNS)
+            w.writeheader()
+            for r in rows:
+                w.writerow({c: r.get(c, "") for c in COLUMNS})
+        logger.info("signals_log.csv sxemasi yangilandi (%d qator ko'chirildi)", len(rows))
+    except (OSError, csv.Error) as exc:
+        logger.warning("signals_log migratsiyasi xato: %s", exc)
 
 _seen: set | None = None  # yozilgan signal_id'lar (dedup uchun, CSV'dan yuklanadi)
 
@@ -90,6 +117,7 @@ def log_signal(row: dict):
     if sid in seen:
         return
     os.makedirs(RESULTS_DIR, exist_ok=True)
+    _migrate_header()
     exists = os.path.exists(SIGNALS_LOG_CSV)
     full = {c: row.get(c, "") for c in COLUMNS}
     with open(SIGNALS_LOG_CSV, "a", newline="", encoding="utf-8") as f:

@@ -62,6 +62,10 @@ _already_notified: set[tuple] = set()
 
 _STATE_PATH = os.path.join(os.path.dirname(DB_PATH), "notified.json")
 
+# Ontologiya natijalari (ball/analog) scan_symbol'da hisoblanib, run_once'da
+# Telegram xabariga qo'shish uchun vaqtincha saqlanadi (signal_id -> (conf, analog))
+_ONTO_CACHE: dict = {}
+
 
 def _load_notified_state():
     global _already_notified
@@ -164,6 +168,11 @@ def scan_symbol(symbol: str, now_ny: datetime) -> list:
         ts_utc = pd.Timestamp(sig.sweep_candle_time).tz_convert("UTC").isoformat()
         cisd_ok = detect_cisd(df_m5, pd.Timestamp(sig.sweep_candle_time),
                               sig.direction) is not None
+        # Ontologiya: to'liqlik balli + tarixiy analog (har signal uchun)
+        import ontology
+        conf = ontology.confluence_score(sig, r, cisd_ok)
+        analog = ontology.find_analogs(sig.level_name, sig.direction, r["qt_phase"])
+        _ONTO_CACHE[sid] = (conf, analog)
         ablation.log_signal({
             "signal_id": sid, "timestamp_utc": ts_utc, "symbol": sig.symbol,
             "direction": sig.direction, "level_type": ablation.level_type(sig.level_name),
@@ -175,6 +184,9 @@ def scan_symbol(symbol: str, now_ny: datetime) -> list:
             "filter_hrl": "pass" if r["hrl"] else "fail",
             "final_verdict": r["verdict"], "rejected_by": r["rejected_by"],
             "source": DATA_SOURCE,
+            "confluence_score": conf["score"],
+            "analog_n": analog["n"] if analog else "",
+            "analog_win_pct": analog["win_pct"] if analog else "",
         })
 
         if r["verdict"] == "accepted":
@@ -269,7 +281,25 @@ def run_once():
                 sig.symbol, sig.condition, sig.level_name, sig.direction,
             )
             llm_eval = _llm_evaluate(sig)  # strukturali tanqid (None bo'lishi mumkin)
-            notify_signal(sig, llm_eval=llm_eval)
+            # Ontologiya bloki: to'liqlik balli + tarixiy analog + LLM-ziddiyat
+            extra = None
+            try:
+                import ontology
+                sid0 = ablation.make_signal_id(sig.symbol, sig.condition,
+                                               sig.level_name, sig.direction,
+                                               sig.sweep_candle_time)
+                cached = _ONTO_CACHE.pop(sid0, None)
+                if cached:
+                    conf, analog = cached
+                    ex = [f"🧩 <b>To'liqlik balli: {conf['score']}/100</b>",
+                          ontology.analog_text(analog)]
+                    warn = ontology.validate_llm_eval(llm_eval, conf)
+                    if warn:
+                        ex.append(warn)
+                    extra = "\n".join(ex)
+            except Exception as exc:
+                logger.warning("Ontologiya bloki qo'shilmadi: %s", exc)
+            notify_signal(sig, llm_eval=llm_eval, extra_text=extra)
             register_trade(sig)  # forward-test: xayoliy savdo ochiladi
             if llm_eval and ABLATION_LOG_ENABLED:
                 sid = ablation.make_signal_id(sig.symbol, sig.condition,

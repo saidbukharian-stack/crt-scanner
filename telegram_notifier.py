@@ -99,10 +99,12 @@ def format_llm_eval(ev: dict) -> str:
     return "\n".join(lines)
 
 
-def notify_signal(signal: SweepSignal, llm_eval: dict | None = None) -> bool:
+def notify_signal(signal: SweepSignal, llm_eval: dict | None = None,
+                  extra_text: str | None = None) -> bool:
     """
     llm_eval — scanner'da bir marta hisoblangan strukturali baho (Vazifa 4).
-    Berilmasa LLM bo'limisiz yuboriladi (signal hech qachon kutmaydi).
+    extra_text — ontologiya bloki (to'liqlik balli, tarixiy analog).
+    Berilmasa o'sha bo'limlarsiz yuboriladi (signal hech qachon kutmaydi).
     """
     message = format_signal_message(signal)
 
@@ -114,6 +116,10 @@ def notify_signal(signal: SweepSignal, llm_eval: dict | None = None) -> bool:
             message += f"\n\n{plan}"
     except Exception as exc:
         logger.warning("Reja qo'shilmadi: %s", exc)
+
+    # Ontologiya bloki (ball + analog)
+    if extra_text:
+        message += f"\n\n{extra_text}"
 
     # LLM strukturali tanqid (erkin matn "sotuvchi" o'rniga - Vazifa 4)
     if llm_eval:

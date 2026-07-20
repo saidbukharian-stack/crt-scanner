@@ -47,6 +47,8 @@ _HELP = (
     "• USTEC holati\n\n"
     "<b>3) Xayoliy hisob</b> — forward-test balansi:\n"
     "• /hisob\n\n"
+    "<b>4) Setup zanjiri</b> — bo'g'inma-bo'g'in holat (✓/✗):\n"
+    "• /zanjir EURUSD\n\n"
     "Eslatma: men maslahatchi instrumentman, savdo qarori o'zingizda."
 )
 
@@ -88,6 +90,20 @@ def _handle_text(text: str) -> str:
         return _HELP
     if low.startswith("/hisob") or low in ("hisob", "balans"):
         return paper_account.summary()
+    if low.startswith("/zanjir") or low.startswith("zanjir"):
+        symbol = resolve_symbol(stripped)
+        if symbol is None:
+            return "Qaysi instrument? Masalan: /zanjir EURUSD"
+        try:
+            import ontology
+            from market_snapshot import connector as ms_conn
+            if not ms_conn.connect():
+                return "⚠️ Narx manbasiga ulanib bo'lmadi."
+            res = ontology.chain_status(symbol, ms_conn)
+            return res or "⚠️ Ma'lumot yetarli emas."
+        except Exception as exc:
+            logger.exception("zanjir xatosi")
+            return f"⚠️ Zanjir hisoblanmadi: {exc}"
     if not (GEMINI_API_KEY or GROQ_API_KEY):
         return "⚠️ LLM hali sozlanmagan (GEMINI_API_KEY / GROQ_API_KEY yo'q)."
 
