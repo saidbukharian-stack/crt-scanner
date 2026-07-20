@@ -47,7 +47,10 @@ logger = logging.getLogger(__name__)
 
 
 def _plan_levels(sig: SweepSignal):
-    """Kirish/stop/maqsad narxlarини qaytaradi (format_trade_plan bilan bir xil)."""
+    """
+    Kirish/stop/maqsad narxlari — JORIY savdo qoidasi bilan bir xil
+    (2026-07-14 dan): maqsad 50% (yarim yopish) + 100% (qarshi likvidlik).
+    """
     entry = sig.close_price
     if sig.direction == "bullish_sweep":
         stop = sig.sweep_low
@@ -56,25 +59,26 @@ def _plan_levels(sig: SweepSignal):
         stop = sig.sweep_high
         sign = -1
     r = abs(entry - stop)
-    targets = {
-        "1R": entry + sign * r,
-        "2R": entry + sign * 2 * r,
-        "3R": entry + sign * 3 * r,
-    }
+    targets = {}
     if sig.crt_mid is not None:
-        targets["CRT50"] = sig.crt_mid
+        targets["50% (yarim)"] = sig.crt_mid
+    if sig.liquidity_target is not None:
+        targets["100% (likvidlik)"] = sig.liquidity_target
+    if not targets:  # juftlanmagan daraja - zaxira
+        targets["2R"] = entry + sign * 2 * r
     return entry, stop, targets
 
 
 def render_signal_chart(sig: SweepSignal, bars: int = 70) -> str | None:
     """
     Signal uchun grafik PNG yasaydi, fayl yo'lini qaytaradi.
-    USE_TV_SCREENSHOT=1 (lokal) -> TradingView screenshot; aks holda matplotlib.
+
+    Signal grafigi HAR DOIM matplotlib (treyder talabi 2026-07-20):
+    kirish/stop/50%/100% chiziqlari GRAFIKNING O'ZIDA chizilgan bo'lishi
+    shart - TradingView screenshot'da buni chizib bo'lmaydi. TV screenshot
+    /holat uchun qoladi (u yerda daraja chizish shart emas).
     Xato bo'lsa None (signal baribir matn bilan yuboriladi).
     """
-    tv = _try_tv(sig.symbol, MT5_TIMEFRAME_ENTRY)
-    if tv:
-        return tv
     try:
         df = connector.get_candles(sig.symbol, MT5_TIMEFRAME_ENTRY, count=bars)
         if df.empty:

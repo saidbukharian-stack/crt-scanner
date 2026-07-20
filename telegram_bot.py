@@ -119,16 +119,22 @@ def _handle_text(text: str) -> str:
         analysis = analyze_market(snapshot)
         if not analysis:
             return "⚠️ Tahlil qilib bo'lmadi (LLM limiti yoki xato)."
-        # Jonli grafik-rasm (narx + darajalar + FVG) - matn tahlil bilan
+        # TAHLIL RASM BILAN BIRGA keladi (treyder talabi 2026-07-20):
+        # tahlil rasmning caption'ida; sig'masa rasm + davomi matnda.
+        text = f"📈 <b>{symbol} — jonli tahlil</b>\n\n{analysis}"
         try:
             from chart_image import render_holat_chart
             from telegram_notifier import send_telegram_photo
             chart = render_holat_chart(symbol)
             if chart:
-                send_telegram_photo(chart, f"📈 {symbol} — jonli holat")
+                if len(text) <= 1024:
+                    send_telegram_photo(chart, text)
+                    return ""  # hammasi rasm bilan ketdi
+                send_telegram_photo(chart, text[:1000] + "…")
+                return "…davomi:\n" + text[1000:3900]
         except Exception as exc:
             logger.warning("Holat grafigi yuborilmadi: %s", exc)
-        return f"📈 <b>{symbol} — jonli tahlil</b>\n\n{analysis}"
+        return text
 
     # Aks holda: bilim bazasidan savol-javob
     if low.startswith("/tushuntir"):
@@ -153,6 +159,8 @@ def _process_updates(updates: list, offset: int) -> int:
             continue
         logger.info("Savol: %s", text[:80])
         reply = _handle_text(text)
+        if not reply:
+            continue  # javob rasm (caption) bilan allaqachon yuborilgan
         try:
             _tg("sendMessage", chat_id=chat_id, text=reply, parse_mode="HTML")
         except requests.RequestException as exc:
