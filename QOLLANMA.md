@@ -147,3 +147,50 @@ gh workflow run bot.yml
 ```
 Bulut Yahoo narxidan foydalanadi (MT5 emas) — natijalari alohida saqlanadi.
 O'chirish: `gh workflow disable scan.yml` va `gh workflow disable bot.yml`
+
+---
+
+## 9. VS Code orqali ishlatish (PowerShell o'rniga)
+
+PowerShell oynasi shart emas — hammasini VS Code ichida qilish mumkin.
+
+### A) Tugmalar bilan (eng oson)
+1. VS Code'da loyihani oching: **File → Open Folder → `D:\Tap\crt_scanner`**
+2. **`Ctrl + Shift + P`** bosing
+3. **`Tasks: Run Task`** deb yozing va Enter
+4. Ro'yxatdan tanlang:
+
+| Tugma | Nima qiladi |
+|---|---|
+| **1. Skanerni ishga tushirish** | Signal skaneri (MT5 ochiq bo'lsin) |
+| **2. Telegram botni ishga tushirish** | `/holat`, `/zanjir`, savol-javob |
+| **3. Natijalarni tahlil qilish** | Hisobot → `results/report.md` |
+| **4. Skanerni to'xtatish** | Ishlayotganini majburan yopadi |
+| **5. Holatni tekshirish** | Skaner va MT5 ishlayaptimi? |
+
+Har vazifa o'z terminal panelida ochiladi — skaner va bot bir vaqtda
+ishlashi mumkin, bir-biriga xalaqit bermaydi.
+
+### B) Terminal orqali
+1. VS Code'da **`Ctrl + \``** (yoki **Terminal → New Terminal**)
+2. Pastda terminal ochiladi, o'sha yerda:
+```powershell
+.\run_local.ps1
+```
+To'xtatish: terminalda **`Ctrl + C`**
+
+### Foydali qisqartmalar
+| Tugma | Vazifa |
+|---|---|
+| `Ctrl + Shift + P` → `Run Task` | Vazifalar ro'yxati |
+| ``Ctrl + ` `` | Terminal ochish/yopish |
+| `Ctrl + C` (terminalda) | Ishlayotgan jarayonni to'xtatish |
+| Terminal panelidagi 🗑 | Terminalni yopish |
+
+### Agar "ExecutionPolicy" xatosi chiqsa
+VS Code terminalida bir marta quyidagini bajaring:
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+```
+(Vazifalar allaqachon `-ExecutionPolicy Bypass` bilan ishlaydi, shuning
+uchun odatda bu kerak bo'lmaydi.)
