@@ -49,3 +49,32 @@ b6d50813b4cc,2026-07-16T11:00:00+00:00,EURUSD,bullish_sweep,CRT,0.4,False,fail,p
 c5ff27c1db57,2026-07-17T06:20:00+00:00,EURUSD,bearish_sweep,CRT,0.571,False,pass,pass,Manipulation,fail,fail,rejected,mo_bias,mt5,-1.0,,,,,,
 d4808cb789f9,2026-07-17T06:55:00+00:00,USDCAD,bullish_sweep,CRT,0.722,False,pass,pass,Manipulation,fail,fail,rejected,mo_bias,mt5,-1.0,,,,,,
 485730cdfd27,2026-07-17T10:05:00+00:00,USDCAD,bullish_sweep,CRT,0.533,False,pass,pass,Distribution,fail,fail,rejected,mo_bias,mt5,0.0,,,,,,
+e3151dab5c64,2026-07-20T10:10:00+00:00,EURUSD,bullish_sweep,CRT,0.571,False,fail,pass,Distribution,fail,fail,rejected,pd,mt5,-1.0,,,,40,531,34
+9a1356848fb1,2026-07-20T10:10:00+00:00,GBPUSD,bearish_sweep,CRT,0.344,False,pass,pass,Distribution,fail,fail,rejected,mo_bias,mt5,-1.0,,,,46,602,34
+242896a0c19a,2026-07-20T10:20:00+00:00,USDCAD,bearish_sweep,CRT,0.4,False,fail,pass,Distribution,fail,fail,rejected,pd,mt5,-1.0,,,,35,602,34
+7b2584cc1796,2026-07-20T10:45:00+00:00,EURUSD,bearish_sweep,CRT,0.3,False,pass,pass,Distribution,pass,fail,rejected,hrl,mt5,-1.0,,,,61,602,34
+16e5209a98ed,2026-07-20T11:05:00+00:00,XAUUSD,bearish_sweep,PD,0.487,False,fail,pass,Distribution,pass,fail,rejected,pd,mt5,-1.0,,,,50,65,25
+2921ceeca8d0,2026-07-20T11:30:00+00:00,XAUUSD,bearish_sweep,CRT,0.418,False,fail,pass,Distribution,fail,fail,rejected,pd,mt5,3.106,,,,35,602,34
+94b61c9620ab,2026-07-20T11:45:00+00:00,EURUSD,bullish_sweep,CRT,0.5,False,fail,pass,Distribution,fail,fail,rejected,pd,mt5,-1.0,,,,40,531,34
+75b2b5bab910,2026-07-20T12:00:00+00:00,GBPUSD,bullish_sweep,CRT,0.76,False,fail,pass,Distribution,pass,fail,rejected,pd,mt5,-1.0,,,,55,531,34
+2c33780b5648,2026-07-20T13:25:00+00:00,GBPUSD,bullish_sweep,CRT,0.758,False,fail,pass,Distribution,fail,fail,rejected,pd,mt5,0.0,,,,40,531,34
+4c9675825528,2026-07-20T13:35:00+00:00,EURUSD,bullish_sweep,CRT,0.5,False,pass,pass,Distribution,fail,fail,rejected,mo_bias,mt5,0.0,,,,55,531,34
+e68a0305f0e1,2026-07-20T13:45:00+00:00,GBPUSD,bullish_sweep,CRT,0.569,False,pass,pass,Distribution,fail,fail,rejected,mo_bias,mt5,0.0,,,,55,531,34
+01163b280cb6,2026-07-20T13:45:00+00:00,GBPUSD,bullish_sweep,CRT,0.569,False,pass,pass,Distribution,fail,fail,rejected,mo_bias,mt5,0.0,,,,55,531,34
+fd69543cbb93,2026-07-22T06:00:00+00:00,GBPUSD,bullish_sweep,CRT,0.538,False,pass,pass,Manipulation,pass,fail,accepted,,mt5,,8,medium,"vaqt(NY) 02:00:00-04:00 oralig'ida bo'lib, bu vaqt oralig'i CRT uchun eng yaxshi emas, shuning uchun signalning ishonchliligi kamayadi",66,155,30
+58a6f21ae350,2026-07-22T06:00:00+00:00,USDCAD,bullish_sweep,CRT,0.396,False,fail,pass,Manipulation,pass,fail,rejected,pd,mt5,-1.0,,,,46,155,30
+cd6edeec8e53,2026-07-22T06:30:00+00:00,EURUSD,bearish_sweep,CRT,0.35,False,fail,pass,Manipulation,pass,fail,rejected,pd,mt5,,,,,46,127,30
+b7c77ea961d7,2026-07-22T06:35:00+00:00,EURUSD,bearish_sweep,CRT,0.5,False,fail,pass,Manipulation,pass,fail,rejected,pd,mt5,,,,,55,127,30
+b7c77ea961d7,2026-07-22T06:35:00+00:00,EURUSD,bearish_sweep,CRT,0.4,False,fail,pass,Manipulation,pass,fail,rejected,pd,mt5,,,,,50,127,30
+3cd68d8fc731,2026-07-22T10:05:00+00:00,USDCAD,bullish_sweep,CRT,0.7,False,fail,pass,Distribution,pass,fail,rejected,pd,mt5,-1.0,,,,55,531,34
+3cd68d8fc731,2026-07-22T10:05:00+00:00,USDCAD,bullish_sweep,CRT,0.7,False,fail,pass,Distribution,pass,fail,rejected,pd,mt5,,,,,55,531,34
+a6851f73a52d,2026-07-22T10:15:00+00:00,EURUSD,bullish_sweep,CRT,0.467,False,pass,pass,Distribution,pass,fail,accepted,,mt5,,8,medium,"bu setup nima uchun ISHLAMASLIGI mumkin - vaqt NY 07:00-04:00, Q2/London killzone emas, lekin 07:00 NYam choragida, shuningdek, wick 73% emas, 30% dan yuqori, ammo 50% maqsad darajasi aniq emas",65,531,34
+61c00cf48ec6,2026-07-22T10:20:00+00:00,EURUSD,bearish_sweep,CRT,0.421,False,fail,pass,Distribution,pass,fail,rejected,pd,mt5,-1.0,,,,50,602,34
+61c00cf48ec6,2026-07-22T10:20:00+00:00,EURUSD,bearish_sweep,CRT,0.421,False,fail,pass,Distribution,pass,fail,rejected,pd,mt5,,,,,50,602,34
+8edfb3e8b4c1,2026-07-22T10:35:00+00:00,GBPUSD,bullish_sweep,CRT,0.634,False,pass,pass,Distribution,fail,fail,rejected,mo_bias,mt5,-1.0,,,,55,531,34
+8edfb3e8b4c1,2026-07-22T10:35:00+00:00,GBPUSD,bullish_sweep,CRT,0.634,False,pass,pass,Distribution,fail,fail,rejected,mo_bias,mt5,,,,,55,531,34
+5def0296a301,2026-07-22T10:40:00+00:00,GBPUSD,bullish_sweep,CRT,0.317,False,pass,pass,Distribution,fail,fail,rejected,mo_bias,mt5,-1.0,,,,46,531,34
+5def0296a301,2026-07-22T10:40:00+00:00,GBPUSD,bullish_sweep,CRT,0.317,False,pass,pass,Distribution,fail,fail,rejected,mo_bias,mt5,,,,,46,531,34
+9eac2c6ce97c,2026-07-22T10:55:00+00:00,USDCAD,bullish_sweep,CRT,0.321,False,fail,pass,Distribution,pass,fail,rejected,pd,mt5,,,,,46,531,34
+a6851f73a52d,2026-07-22T11:00:00+00:00,EURUSD,bullish_sweep,CRT,0.733,False,pass,pass,Distribution,pass,fail,accepted,,mt5,,,,,70,532,34
+9eac2c6ce97c,2026-07-22T11:00:00+00:00,USDCAD,bullish_sweep,CRT,0.467,False,fail,pass,Distribution,pass,fail,rejected,pd,mt5,,,,,50,532,34

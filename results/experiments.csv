@@ -1,0 +1,15 @@
+sana,gipoteza,ozgarish,natija_r,namuna_n,qabul_qilindi,izoh
+2026-07-22T11:28:56+00:00,Xom purge (raw) varianti foydalimi?,raw variant olib tashlandi,-135.0,30,ha,barcha o'lchovda minusda edi (2026-07-08)
+2026-07-22T11:28:56+00:00,Maqsad STDV -4 bo'lsinmi yoki likvidlikmi?,maqsad=likvidlik 50%+100%,,,ha,treyder qarori 2026-07-09
+2026-07-22T11:28:56+00:00,BE 50%-tegishda foydalimi?,MGMT_BE_ENABLED=0,-15.4,108,ha,"108 juftlangan savdo: BE@50% -15.4R, BE@1R -8.4R, BE'siz -13.7R"
+2026-07-22T11:28:56+00:00,BE@1R yaxshiroqmi?,MGMT_BE_AT_R=1.0,-8.4,108,yo'q,"sinaldi, lekin treyder BE'ni butunlay o'chirishni tanladi"
+2026-07-22T11:28:56+00:00,Partial'siz + BE@1R,MGMT_PARTIAL_ENABLED=0,-6.4,108,yo'q,"eng yaxshi chiqdi, qabul qilinmadi"
+2026-07-22T11:28:56+00:00,BE@1.5R,MGMT_BE_AT_R=1.5,-13.3,108,yo'q,kech - himoya yo'qoladi
+2026-07-22T11:28:56+00:00,NDOG signal manbai foydalimi?,opening_gap NDOG o'chirildi,-16.9,78,ha,"backtest: n=78, o'rt -0.22R - eng katta zarar"
+2026-07-22T11:28:56+00:00,NWOG ham o'chirilsinmi?,opening_gap_sweep=False,-0.8,11,ha,treyder qarori
+2026-07-22T11:28:56+00:00,Indekslar (USTEC/US500) qolsinmi?,INSTRUMENTS dan olib tashlandi,-12.6,45,ha,treyder qarori: forex+metall
+2026-07-22T11:28:56+00:00,HRL filtri edge beradimi?,HRL_FILTER_ENABLED=0,0.05,33,ha,62 jonli signaldan 4 tasini o'tkazardi (6%); ablation +0.05R
+2026-07-22T11:28:56+00:00,Midnight bias juda qattiqmi?,MIDNIGHT_BIAS_TOLERANCE_FRAC=0.15,,62,ha,62 signaldan 45 tasini yiqitardi
+2026-07-22T11:28:56+00:00,m5_ote (retracement kirish) yaxshiroqmi?,m5_ote varianti qo'shildi,-39.0,72,ha,backtest: -0.54R o'rt - CISD'dan yomon
+2026-07-22T11:28:56+00:00,m1_ote (micro kirish) yaxshiroqmi?,m1_ote varianti qo'shildi,-48.3,58,ha,backtest: -0.83R o'rt - eng yomoni
+2026-07-22T11:28:56+00:00,m5_sb (Silver Bullet) yaxshiroqmi?,m5_sb varianti qo'shildi,-9.1,21,ha,"backtest: -0.43R, namuna kichik"

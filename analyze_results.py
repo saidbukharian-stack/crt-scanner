@@ -97,6 +97,8 @@ def load_trades(source: str | None, backtest_only: bool,
     if df.empty:
         return df
     df["entry_ts"] = pd.to_datetime(df["entry_time_ny"], errors="coerce", utc=True)
+    df["resolved_ts"] = pd.to_datetime(df.get("resolved_time_ny", ""),
+                                       errors="coerce", utc=True)
     df["weekday"] = pd.to_datetime(
         df["entry_time_ny"].str[:10], errors="coerce").dt.day_name()
     df["level_type"] = df["level_name"].map(lambda x: level_type(x) if x else "?")
@@ -127,13 +129,62 @@ def _session_of(ts: str) -> str:
 # ---------------------------------------------------------------------------
 # Statistika yordamchilari
 # ---------------------------------------------------------------------------
-def _bootstrap_ci(x: np.ndarray, iters: int = 2000, seed: int = 42):
-    """O'rtacha uchun oddiy bootstrap 95% ishonch oralig'i (deterministik seed)."""
+def effective_sample_size(starts, ends) -> float:
+    """
+    Samarali namuna hajmi — AFML (Lopez de Prado) 4-bob "sample uniqueness".
+
+    MUAMMO: savdolar vaqt bo'yicha USTMA-UST tushadi (bir vaqtda bir necha
+    savdo ochiq). Ular bir xil narx harakatidan hosil bo'ladi, ya'ni
+    MUSTAQIL KUZATUV EMAS. Mustaqillikni faraz qilgan statistika (bootstrap
+    CI, n>=30 chegarasi) haqiqatdan ishonchliroq ko'rinadi.
+
+    USUL: har savdoning "yolg'izligi" = 1 / (o'sha paytda ochiq savdolar soni).
+    Samarali n = shu yolg'izliklar yig'indisi (soddalashtirilgan uniqueness).
+
+    O'lchandi (2026-07-22): backtest'da 367 savdo -> samarali 61 (83% kamayish).
+    """
+    s = np.asarray(starts, dtype="datetime64[ns]")
+    e = np.asarray(ends, dtype="datetime64[ns]")
+    if len(s) == 0:
+        return 0.0
+    eff = 0.0
+    for i in range(len(s)):
+        conc = int(((s < e[i]) & (e > s[i])).sum())  # o'zini ham sanaydi
+        eff += 1.0 / max(conc, 1)
+    return float(eff)
+
+
+def _trade_spans(g: pd.DataFrame):
+    """Savdo boshlanish/tugash vaqtlari (tugash noma'lum bo'lsa 17:00 NY taxmini)."""
+    start = g["entry_ts"]
+    end = pd.to_datetime(g.get("resolved_ts"), errors="coerce", utc=True) \
+        if "resolved_ts" in g.columns else pd.Series([pd.NaT] * len(g), index=g.index)
+    # Muddat 17:00 NY -> kirish + ~8 soat konservativ taxmin
+    fallback = start + pd.Timedelta(hours=8)
+    end = end.fillna(fallback)
+    end = end.where(end > start, fallback)  # buzuq yozuvlar uchun
+    return start.to_numpy(), end.to_numpy()
+
+
+def _bootstrap_ci(x: np.ndarray, iters: int = 2000, seed: int = 42,
+                  n_eff: float | None = None):
+    """
+    O'rtacha uchun bootstrap 95% ishonch oralig'i (deterministik seed).
+
+    n_eff berilsa — CI kengligi sqrt(n / n_eff) ga kengaytiriladi (AFML 4-bob):
+    ustma-ust tushgan kuzatuvlar mustaqil emas, shuning uchun oddiy bootstrap
+    oraliqni juda TOR ko'rsatadi.
+    """
     if len(x) < 2:
         return (float("nan"), float("nan"))
     rng = np.random.default_rng(seed)
     means = rng.choice(x, size=(iters, len(x)), replace=True).mean(axis=1)
-    return (float(np.percentile(means, 2.5)), float(np.percentile(means, 97.5)))
+    lo, hi = float(np.percentile(means, 2.5)), float(np.percentile(means, 97.5))
+    if n_eff and n_eff > 0 and n_eff < len(x):
+        scale = (len(x) / n_eff) ** 0.5
+        mid = float(np.mean(x))
+        lo, hi = mid - (mid - lo) * scale, mid + (hi - mid) * scale
+    return (lo, hi)
 
 
 def _max_drawdown(net: np.ndarray) -> float:
@@ -156,9 +207,12 @@ def _variant_stats(g: pd.DataFrame) -> dict:
     wins = net[net > 0]
     losses = net[net < 0]
     pf = wins.sum() / abs(losses.sum()) if losses.sum() != 0 else float("inf")
-    lo, hi = _bootstrap_ci(net)
+    # AFML 4-bob: ishonchlilik NOMINAL emas, SAMARALI namunaga qarab baholanadi
+    n_eff = effective_sample_size(*_trade_spans(g))
+    lo, hi = _bootstrap_ci(net, n_eff=n_eff)
     return {
         "savdo": len(net),
+        "samarali n": round(n_eff, 1),
         "win%": 100 * (net > 0).mean() if len(net) else 0,
         "o'rt R": net.mean() if len(net) else 0,
         "CI95": f"[{lo:+.2f},{hi:+.2f}]" if not np.isnan(lo) else "-",
@@ -166,7 +220,8 @@ def _variant_stats(g: pd.DataFrame) -> dict:
         "PF": round(pf, 2) if np.isfinite(pf) else "inf",
         "maxDD(R)": round(_max_drawdown(net), 1),
         "mag'l.seriya": _longest_loss_streak(net),
-        "ishonch": "OK" if len(net) >= MIN_SAMPLE else f"⚠ n<{MIN_SAMPLE} — xulosa erta",
+        "ishonch": "OK" if n_eff >= MIN_SAMPLE
+                   else f"⚠ samarali n<{MIN_SAMPLE} — xulosa erta",
     }
 
 
@@ -268,6 +323,57 @@ def section_ablation(df: pd.DataFrame, signals: pd.DataFrame):
         _emit("\n_hech bir filtr uchun 'zarar' belgisi yo'q (yoki namuna kichik)_")
 
 
+def section_calibration(df: pd.DataFrame, signals: pd.DataFrame):
+    """
+    KALIBRATSIYA (AFML 14-bob ruhi): bizning baholarimiz ISHLAYAPTIMI?
+
+    Tekshiriladi: confluence_score (ontologiya balli), analog_win_pct
+    (tarixiy imzo statistikasi). Agar yuqori ball = yaxshi natija bo'lmasa,
+    o'sha qatlam qiymat qo'shmayapti va uni soddalashtirish kerak.
+    """
+    _emit("\n### Kalibratsiya: baholarimiz ishlayaptimi?\n")
+    if signals.empty:
+        _emit("_signals_log.csv bo'sh_")
+        return
+    acc = df[df["final_verdict"] == "accepted"]
+    if acc.empty or "signal_id" not in acc.columns:
+        _emit("_qabul qilingan savdolar yo'q_")
+        return
+
+    s = signals.copy()
+    merged = acc.merge(s, on="signal_id", how="inner", suffixes=("", "_sig"))
+    if merged.empty:
+        _emit("_signal jurnali bilan moslik topilmadi (backtest yozuvlarida "
+              "signals_log bo'lmaydi — bu normal)_")
+        return
+
+    for col, name, bins, labels in (
+        ("confluence_score", "To'liqlik balli", [0, 50, 70, 100], ["<50", "50-70", "70+"]),
+        ("analog_win_pct", "Tarixiy analog win%", [0, 30, 45, 100], ["<30%", "30-45%", "45%+"]),
+    ):
+        if col not in merged.columns:
+            continue
+        m = merged.copy()
+        m[col] = pd.to_numeric(m[col], errors="coerce")
+        m = m[m[col].notna()]
+        if m.empty:
+            _emit(f"\n**{name}**: ma'lumot hali yig'ilmagan")
+            continue
+        m["guruh"] = pd.cut(m[col], bins=bins, labels=labels, include_lowest=True)
+        g = m.groupby("guruh", observed=True)["net_r_f"].agg(
+            savdo="count", ort_R="mean").round(2)
+        _emit(f"\n**{name}**")
+        _emit(_md_table(g))
+        # Monotonlik tekshiruvi — yuqori ball = yaxshiroq natijami?
+        vals = g["ort_R"].dropna().tolist()
+        if len(vals) >= 2:
+            if vals == sorted(vals):
+                _emit(f"\n✅ Monoton: yuqori {name.lower()} = yaxshiroq natija")
+            else:
+                _emit(f"\n⚠️ Monoton EMAS — bu baho hozircha qiymat qo'shmayapti "
+                      f"(yoki namuna juda kichik)")
+
+
 def section_llm(df: pd.DataFrame, signals: pd.DataFrame):
     """LLM balli guruhlar bo'yicha o'rtacha R (Vazifa 4 ma'lumoti kelgach ishlaydi)."""
     if signals.empty or "llm_score" not in signals.columns:
@@ -318,6 +424,7 @@ def main():
                 section_slices(bdf)
                 # FORWARD'da shadow signals_log'dan, BACKTEST'da rejected qatorlardan
                 section_ablation(bdf, signals if mode == "FORWARD" else pd.DataFrame())
+                section_calibration(bdf, signals)
                 section_llm(bdf, signals)
 
     os.makedirs(RESULTS_DIR, exist_ok=True)
