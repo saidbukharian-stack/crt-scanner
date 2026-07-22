@@ -194,3 +194,66 @@ Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
 ```
 (Vazifalar allaqachon `-ExecutionPolicy Bypass` bilan ishlaydi, shuning
 uchun odatda bu kerak bo'lmaydi.)
+
+---
+
+## 10. CMD (Командная строка) orqali — eng oddiy yo'l
+
+PowerShell ham, VS Code ham shart emas. Loyiha papkasida **5 ta tugma-fayl** bor:
+
+| Fayl | Nima qiladi |
+|---|---|
+| **SKANER_YOQ.bat** | Skanerni ishga tushiradi (asosiy) |
+| **BOT_YOQ.bat** | Telegram botni ishga tushiradi |
+| **HOLAT.bat** | Skaner/bot/MT5 ishlayaptimi — tekshiradi |
+| **HAMMASINI_TOXTAT.bat** | Skaner va botni to'xtatadi |
+| **NATIJA.bat** | Natijalar hisoboti |
+
+### A) Sichqoncha bilan (eng oson)
+`D:\Tap\crt_scanner` papkasini ochib, kerakli faylni **ikki marta bosing**.
+
+### B) CMD orqali
+```cmd
+cd /d D:\Tap\crt_scanner
+SKANER_YOQ.bat
+```
+
+### To'liq ish tartibi
+
+**1. MT5 ni oching** va ulanishini kuting (narxlar jonli o'zgarsin)
+
+**2. Skanerni yoqing:**
+```cmd
+cd /d D:\Tap\crt_scanner
+SKANER_YOQ.bat
+```
+Bu oyna **ochiq qolishi kerak** — skaner shu yerda ishlaydi.
+
+**3. Botni yoqing (ixtiyoriy) — YANGI CMD oynasida:**
+```cmd
+cd /d D:\Tap\crt_scanner
+BOT_YOQ.bat
+```
+
+**4. Tekshirish — uchinchi oynada:**
+```cmd
+cd /d D:\Tap\crt_scanner
+HOLAT.bat
+```
+Chiqishi kerak:
+```
+SKANER: ishlayapti (PID 12345)
+BOT: ishlayapti (PID 12346)
+MT5: ochiq
+```
+
+**5. To'xtatish:**
+```cmd
+HAMMASINI_TOXTAT.bat
+```
+yoki har oynada `Ctrl + C`.
+
+### Muhim
+- Skaner va bot **alohida oynada** ishlaydi — bittasi ikkinchisiga xalaqit bermaydi
+- Oynani yopish = o'sha jarayonni to'xtatish
+- `HAMMASINI_TOXTAT.bat` ikkalasini ham bir yo'la to'xtatadi
