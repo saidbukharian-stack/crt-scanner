@@ -1,15 +1,14 @@
 {
   "version": "2.0.0",
+  "options": { "cwd": "${workspaceFolder}" },
+  "presentation": { "echo": false, "reveal": "always", "clear": true },
   "tasks": [
     {
       "label": "1. Skanerni ishga tushirish",
       "type": "shell",
       "command": "powershell",
-      "args": ["-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/run_local.ps1"],
-      "options": { "cwd": "${workspaceFolder}" },
-      "presentation": {
-        "reveal": "always", "panel": "dedicated", "group": "crt", "clear": true
-      },
+      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "run_local.ps1"],
+      "presentation": { "panel": "dedicated", "group": "crt" },
       "problemMatcher": [],
       "detail": "MT5 + TradingView bilan signal skaneri (MT5 ochiq bo'lsin!)"
     },
@@ -17,11 +16,8 @@
       "label": "2. Telegram botni ishga tushirish",
       "type": "shell",
       "command": "powershell",
-      "args": ["-ExecutionPolicy", "Bypass", "-File", "${workspaceFolder}/run_local_bot.ps1"],
-      "options": { "cwd": "${workspaceFolder}" },
-      "presentation": {
-        "reveal": "always", "panel": "dedicated", "group": "crt", "clear": true
-      },
+      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "run_local_bot.ps1"],
+      "presentation": { "panel": "dedicated", "group": "crt" },
       "problemMatcher": [],
       "detail": "/holat, /zanjir, /hisob va savol-javob uchun"
     },
@@ -30,11 +26,8 @@
       "type": "shell",
       "command": "python",
       "args": ["analyze_results.py"],
-      "options": {
-        "cwd": "${workspaceFolder}",
-        "env": { "PYTHONIOENCODING": "utf-8" }
-      },
-      "presentation": { "reveal": "always", "panel": "dedicated", "clear": true },
+      "options": { "env": { "PYTHONIOENCODING": "utf-8" } },
+      "presentation": { "panel": "dedicated" },
       "problemMatcher": [],
       "detail": "Hisobot: variantlar, kesimlar, ablation -> results/report.md"
     },
@@ -42,9 +35,8 @@
       "label": "4. Skanerni to'xtatish",
       "type": "shell",
       "command": "powershell",
-      "args": ["-ExecutionPolicy", "Bypass", "-Command",
-        "$p = Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" | Where-Object { $_.CommandLine -like '*scanner.py*' }; if ($p) { $p | ForEach-Object { Stop-Process -Id $_.ProcessId -Force; \"skaner to'xtatildi (PID $($_.ProcessId))\" } } else { 'skaner allaqachon o''chiq' }"],
-      "presentation": { "reveal": "always", "panel": "shared" },
+      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/stop.ps1"],
+      "presentation": { "panel": "shared" },
       "problemMatcher": [],
       "detail": "Ishlayotgan skanerni majburan to'xtatadi"
     },
@@ -52,11 +44,19 @@
       "label": "5. Holatni tekshirish",
       "type": "shell",
       "command": "powershell",
-      "args": ["-ExecutionPolicy", "Bypass", "-Command",
-        "$s = Get-CimInstance Win32_Process -Filter \"Name='python.exe'\" | Where-Object { $_.CommandLine -like '*scanner.py*' }; if ($s) { \"SKANER: ishlayapti (PID $($s.ProcessId))\" } else { 'SKANER: o''chiq' }; $m = Get-Process terminal64 -ErrorAction SilentlyContinue; if ($m) { 'MT5: ochiq' } else { 'MT5: YOPIQ - avval oching!' }"],
-      "presentation": { "reveal": "always", "panel": "shared" },
+      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/status.ps1"],
+      "presentation": { "panel": "shared" },
       "problemMatcher": [],
-      "detail": "Skaner va MT5 ishlayaptimi?"
+      "detail": "Skaner, bot va MT5 ishlayaptimi?"
+    },
+    {
+      "label": "6. Botni to'xtatish",
+      "type": "shell",
+      "command": "powershell",
+      "args": ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/stop_bot.ps1"],
+      "presentation": { "panel": "shared" },
+      "problemMatcher": [],
+      "detail": "Telegram botni to'xtatadi"
     }
   ]
 }
