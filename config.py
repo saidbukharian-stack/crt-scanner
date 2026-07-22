@@ -245,6 +245,11 @@ QT_FILTER_ENABLED = True
 # narxiga mos bo'lsin: bullish faqat MO ustida, bearish faqat ostida.
 # ---------------------------------------------------------------------------
 MIDNIGHT_BIAS_ENABLED = True
+# Midnight bias bag'rikengligi: kunlik diapazonning ulushi (0.15 = 15%).
+# Purge shami narxni MO'dan ozgina o'tkazib yuborishi tabiiy - qattiq
+# shart 62 signaldan 45 tasini yiqitardi (jonli o'lchov 2026-07-22).
+MIDNIGHT_BIAS_TOLERANCE_FRAC = float(
+    os.getenv("MIDNIGHT_BIAS_TOLERANCE_FRAC", "0.15"))
 
 # ---------------------------------------------------------------------------
 # Ablation logging - HAR signal (qabul + rad) results/signals_log.csv ga
@@ -302,7 +307,11 @@ BACKTEST_SPREAD_MULT = float(os.getenv("BACKTEST_SPREAD_MULT", "1.0"))
 # High-Resistance-Liquidity filtri (ICT) - kirish bilan likvidlik maqsadi
 # orasida qarshi FVG (yuqori qarshilik) bo'lsa signal o'tkazilmaydi.
 # ---------------------------------------------------------------------------
-HRL_FILTER_ENABLED = True
+# O'CHIRILDI (2026-07-22): jonli o'lchov - 62 signaldan faqat 4 tasini
+# o'tkazardi (6%), chunki M5'da 400 shamda doim qandaydir qarshi FVG bor.
+# Backtest ablation'da ham foyda bermagan (rad etganlari o'rt +0.05R).
+# Endi rad ETMAYDI, lekin ontologiya to'liqlik balliga hissa qo'shadi.
+HRL_FILTER_ENABLED = os.getenv("HRL_FILTER_ENABLED", "0").strip() == "1"
 
 # ---------------------------------------------------------------------------
 # Telegram sozlamalari (.env faylidan o'qiladi, kodga token yozilmaydi!)

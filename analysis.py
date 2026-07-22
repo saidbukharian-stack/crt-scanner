@@ -41,17 +41,37 @@ def midnight_open(df_m5: pd.DataFrame, for_date) -> float | None:
     return None
 
 
-def midnight_bias_ok(price: float, direction: str, mo: float | None) -> bool:
+def midnight_bias_ok(price: float, direction: str, mo: float | None,
+                     tolerance: float | None = None) -> bool:
     """
     Signal yo'nalishi Midnight Open bias'iga mosmi?
-    bullish_sweep (long) -> narx MO ustida yopilgan; bearish_sweep -> ostida.
+    bullish_sweep (long) -> narx MO ustida; bearish_sweep -> ostida.
+
+    YUMSHATILGAN (2026-07-22): purge shami ta'rifi bo'yicha narxni qarshi
+    tomonga uloqtiradi — sweep close'i MO'ni ozgina kesib o'tishi TABIIY.
+    Shuning uchun `tolerance` (narx birligida) ichidagi chetlanish
+    kechiriladi. Jonli o'lchov: qattiq shart 62 signaldan 45 tasini
+    yiqitardi, ularning ko'pi MO'ga juda yaqin edi.
     mo None bo'lsa filtrlamaymiz (True).
     """
     if mo is None:
         return True
+    tol = tolerance or 0.0
     if direction == "bullish_sweep":
-        return price >= mo
-    return price <= mo
+        return price >= mo - tol
+    return price <= mo + tol
+
+
+def midnight_tolerance(df_m5: pd.DataFrame, frac: float = 0.15) -> float:
+    """
+    Midnight bias uchun bag'rikenglik: so'nggi kunlik diapazonning `frac`
+    ulushi (instrumentga moslashadi - EURUSD va XAUUSD uchun avtomatik).
+    """
+    if df_m5 is None or df_m5.empty:
+        return 0.0
+    recent = df_m5.tail(288)  # ~24 soat M5
+    rng = float(recent["high"].max() - recent["low"].min())
+    return max(rng * frac, 0.0)
 
 
 # ---------------------------------------------------------------------------

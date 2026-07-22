@@ -95,13 +95,15 @@ def evaluate_signal_filters(sig, df_m5, df_h4, mo) -> dict:
     """
     import pandas as pd
     from analysis import (premium_discount_ok, midnight_bias_ok,
-                          low_resistance_to_target)
+                          low_resistance_to_target, midnight_tolerance)
+    from config import MIDNIGHT_BIAS_TOLERANCE_FRAC
     from qt import qt_phase
 
     pd_ok = bool(premium_discount_ok(sig.close_price, sig.direction, df_h4))
     qp = qt_phase(pd.Timestamp(sig.sweep_candle_time))
     qt_ok = bool(qp["favored"])
-    mo_ok = bool(midnight_bias_ok(sig.close_price, sig.direction, mo))
+    tol = midnight_tolerance(df_m5, MIDNIGHT_BIAS_TOLERANCE_FRAC)
+    mo_ok = bool(midnight_bias_ok(sig.close_price, sig.direction, mo, tol))
     hrl_ok = bool(low_resistance_to_target(df_m5, sig.close_price,
                                            sig.liquidity_target, sig.direction))
 
